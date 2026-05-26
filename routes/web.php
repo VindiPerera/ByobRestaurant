@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CategoryController;
@@ -77,10 +78,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/inventory/adjustments/create', [StockAdjustmentController::class, 'create'])->name('stock.adjustments.create');
     Route::post('/inventory/adjustments', [StockAdjustmentController::class, 'store'])->name('stock.adjustments.store');
 
-    Route::get('/reports', function () {
-        $modules = auth()->user()->role->modules()->get();
-        return view('modules.reports', ['modules' => $modules]);
-    })->name('reports.index');
+    Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
 
     Route::get('/settings', function () {
         $modules = auth()->user()->role->modules()->get();

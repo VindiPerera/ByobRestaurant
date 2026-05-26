@@ -85,49 +85,77 @@
                 </div>
             </div>
 
-            <!-- Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <!-- Stats — 6 cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                <!-- Total Sales -->
                 <div class="stat-card">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Total Sales</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-1">LKR 0</p>
+                            <p class="text-lg font-bold text-gray-900 mt-1">LKR {{ number_format($totalSales, 2) }}</p>
                         </div>
-                        <div style="width:48px;height:48px;background:linear-gradient(135deg,#fde8e8,#fecaca);border-radius:14px;display:flex;align-items:center;justify-content:center;">
-                            <i class="fas fa-rupee-sign" style="color:#dc2626;font-size:18px;"></i>
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#fde8e8,#fecaca);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fas fa-rupee-sign" style="color:#dc2626;font-size:14px;"></i>
                         </div>
                     </div>
                 </div>
+                <!-- Active Orders -->
                 <div class="stat-card">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Active Orders</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-1">0</p>
+                            <p class="text-lg font-bold text-gray-900 mt-1">{{ $activeOrders }}</p>
                         </div>
-                        <div style="width:48px;height:48px;background:linear-gradient(135deg,#e8f4fd,#bfdbfe);border-radius:14px;display:flex;align-items:center;justify-content:center;">
-                            <i class="fas fa-shopping-cart" style="color:#2563eb;font-size:18px;"></i>
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#e8f4fd,#bfdbfe);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fas fa-shopping-cart" style="color:#2563eb;font-size:14px;"></i>
                         </div>
                     </div>
                 </div>
+                <!-- Inventory Items -->
                 <div class="stat-card">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Inventory Items</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-1">0</p>
+                            <p class="text-lg font-bold text-gray-900 mt-1">{{ $inventoryItems }}</p>
                         </div>
-                        <div style="width:48px;height:48px;background:linear-gradient(135deg,#edfcf2,#bbf7d0);border-radius:14px;display:flex;align-items:center;justify-content:center;">
-                            <i class="fas fa-boxes" style="color:#16a34a;font-size:18px;"></i>
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#edfcf2,#bbf7d0);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fas fa-boxes" style="color:#16a34a;font-size:14px;"></i>
                         </div>
                     </div>
                 </div>
+                <!-- Active Users -->
                 <div class="stat-card">
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Active Users</p>
-                            <p class="text-2xl font-bold text-gray-900 mt-1">3</p>
+                            <p class="text-lg font-bold text-gray-900 mt-1">{{ $activeUsers }}</p>
                         </div>
-                        <div style="width:48px;height:48px;background:linear-gradient(135deg,#f3e8fd,#e9d5ff);border-radius:14px;display:flex;align-items:center;justify-content:center;">
-                            <i class="fas fa-users" style="color:#7c3aed;font-size:18px;"></i>
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#f3e8fd,#e9d5ff);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fas fa-users" style="color:#7c3aed;font-size:14px;"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- Today's Sales -->
+                <div class="stat-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide">Today's Sales</p>
+                            <p class="text-lg font-bold text-gray-900 mt-1">LKR {{ number_format($todaySales, 2) }}</p>
+                        </div>
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#fef9e8,#fde68a);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fas fa-sun" style="color:#d97706;font-size:14px;"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- This Month -->
+                <div class="stat-card">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-500 text-xs font-semibold uppercase tracking-wide">This Month</p>
+                            <p class="text-lg font-bold text-gray-900 mt-1">LKR {{ number_format($monthRevenue, 2) }}</p>
+                        </div>
+                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#e8fdf9,#99f6e4);border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="fas fa-calendar-check" style="color:#0d9488;font-size:14px;"></i>
                         </div>
                     </div>
                 </div>
