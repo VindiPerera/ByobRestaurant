@@ -31,14 +31,12 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name',
-            'color' => 'nullable|string|max:20',
-            'icon' => 'nullable|string|max:50',
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'required|in:active,inactive',
         ]);
 
-        $validated['color'] = $validated['color'] ?: '#dc2626';
-        $validated['icon'] = $validated['icon'] ?: 'utensils';
+        $validated['color'] = '#dc2626';
+        $validated['icon'] = 'utensils';
         $validated['sort_order'] = $validated['sort_order'] ?? 0;
 
         Category::create($validated);
@@ -60,14 +58,12 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
-            'color' => 'nullable|string|max:20',
-            'icon' => 'nullable|string|max:50',
             'sort_order' => 'nullable|integer|min:0',
             'status' => 'required|in:active,inactive',
         ]);
 
-        $validated['color'] = $validated['color'] ?: '#dc2626';
-        $validated['icon'] = $validated['icon'] ?: 'utensils';
+        $validated['color'] = $category->color ?: '#dc2626';
+        $validated['icon'] = $category->icon ?: 'utensils';
         $validated['sort_order'] = $validated['sort_order'] ?? 0;
 
         $category->update($validated);
