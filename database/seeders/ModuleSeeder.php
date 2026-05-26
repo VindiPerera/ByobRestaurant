@@ -20,6 +20,14 @@ class ModuleSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'name' => 'Category Management',
+                'description' => 'Manage product categories',
+                'icon' => 'tags',
+                'route' => 'categories.index',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
                 'name' => 'Employee Management',
                 'description' => 'Manage employees and staff',
                 'icon' => 'user-tie',
@@ -77,7 +85,11 @@ class ModuleSeeder extends Seeder
             ],
         ];
 
-        DB::table('modules')->insert($modules);
+        DB::table('modules')->upsert(
+            $modules,
+            ['name'],
+            ['description', 'icon', 'route', 'updated_at']
+        );
 
         $adminId = DB::table('roles')->where('name', 'Admin')->first()->id;
         $managerId = DB::table('roles')->where('name', 'Manager')->first()->id;
@@ -87,7 +99,7 @@ class ModuleSeeder extends Seeder
         $posModuleId = DB::table('modules')->where('name', 'POS & Billing')->first()->id;
 
         foreach ($allModules as $module) {
-            DB::table('role_module')->insert([
+            DB::table('role_module')->insertOrIgnore([
                 'role_id' => $adminId,
                 'module_id' => $module->id,
                 'created_at' => now(),
@@ -95,7 +107,7 @@ class ModuleSeeder extends Seeder
             ]);
 
             if ($module->id !== $posModuleId) {
-                DB::table('role_module')->insert([
+                DB::table('role_module')->insertOrIgnore([
                     'role_id' => $managerId,
                     'module_id' => $module->id,
                     'created_at' => now(),
@@ -104,7 +116,7 @@ class ModuleSeeder extends Seeder
             }
 
             if ($module->id === $posModuleId) {
-                DB::table('role_module')->insert([
+                DB::table('role_module')->insertOrIgnore([
                     'role_id' => $cashierId,
                     'module_id' => $module->id,
                     'created_at' => now(),
