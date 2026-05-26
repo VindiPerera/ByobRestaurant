@@ -115,10 +115,10 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-gray-600 text-sm font-medium">Total Sales</p>
-                            <p class="text-3xl font-bold text-gray-900 mt-2">$0</p>
+                            <p class="text-3xl font-bold text-gray-900 mt-2">LKR 0</p>
                         </div>
                         <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-dollar-sign text-red-600 text-xl"></i>
+                            <i class="fas fa-rupee-sign text-red-600 text-xl"></i>
                         </div>
                     </div>
                 </div>

@@ -103,7 +103,7 @@
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                         <span>Subtotal:</span>
-                        <span id="subtotalDisplay" class="font-medium">Rs. 0.00</span>
+                        <span id="subtotalDisplay" class="font-medium">LKR 0.00</span>
                     </div>
 
                     <div class="flex justify-between items-center">
@@ -117,10 +117,14 @@
                             <input type="number" id="discountValue" placeholder="0" class="w-20 text-xs border border-gray-300 rounded px-2 py-1" min="0">
                         </div>
                     </div>
+                    <div class="flex justify-between">
+                        <span>Tax (10%):</span>
+                        <span id="taxDisplay" class="font-medium">LKR 0.00</span>
+                    </div>
 
                     <div class="flex justify-between text-lg font-bold border-t border-gray-200 pt-2 text-red-600">
                         <span>Total:</span>
-                        <span id="totalDisplay">Rs. 0.00</span>
+                        <span id="totalDisplay">LKR 0.00</span>
                     </div>
                 </div>
 
@@ -160,6 +164,56 @@
                 <button onclick="printFromModal()" class="flex-1 btn-primary">
                     <i class="fas fa-print mr-1"></i>Print
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">Payment</h2>
+                <button onclick="closeModal('paymentModal')" class="text-gray-500 hover:text-gray-700 text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex gap-2 mb-4">
+                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="cash">
+                        <i class="fas fa-money-bill-wave mr-2"></i>Cash
+                    </button>
+                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="card">
+                        <i class="fas fa-credit-card mr-2"></i>Card
+                    </button>
+                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="bank_transfer">
+                        <i class="fas fa-university mr-2"></i>Bank
+                    </button>
+                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="mixed">
+                        <i class="fas fa-plus-circle mr-2"></i>Mixed
+                    </button>
+                </div>
+
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Total Amount</p>
+                    <p class="text-3xl font-bold text-red-600" id="paymentTotal">LKR 0.00</p>
+                </div>
+
+                <div>
+                    <label class="text-sm font-medium text-gray-900">Amount Paid</label>
+                    <input type="number" id="amountPaid" class="w-full px-4 py-2 border border-gray-300 rounded-lg mt-1 text-lg" placeholder="0" step="0.01" min="0">
+                </div>
+
+                <div class="bg-green-50 p-3 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Change</p>
+                    <p class="text-2xl font-bold text-green-600" id="changeDisplay">LKR 0.00</p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="closeModal('paymentModal')" class="flex-1 btn-secondary">Cancel</button>
+                    <button id="confirmPayBtn" onclick="confirmPayment()" class="flex-1 btn-primary">Confirm Payment</button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -293,7 +347,7 @@
                         <i class="fas fa-utensils text-gray-400 text-2xl"></i>
                     </div>
                     <p class="font-medium text-gray-900 text-sm line-clamp-2">${product.name}</p>
-                    <p class="text-red-600 font-bold text-lg mt-1">Rs. ${product.price.toFixed(2)}</p>
+                    <p class="text-red-600 font-bold text-lg mt-1">LKR ${product.price.toFixed(2)}</p>
                 </div>
             `).join('');
         }
@@ -369,7 +423,7 @@
                 <div class="bill-item">
                     <div class="flex-1">
                         <p class="font-medium text-gray-900">${item.product_name}</p>
-                        <p class="text-xs text-gray-500">Rs. ${item.unit_price.toFixed(2)}</p>
+                        <p class="text-xs text-gray-500">LKR ${item.unit_price.toFixed(2)}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="decreaseQty(${item.id})" class="w-6 h-6 border border-gray-300 rounded text-xs hover:bg-gray-100">-</button>
@@ -380,7 +434,7 @@
                         </button>
                     </div>
                     <div class="w-20 text-right">
-                        <p class="font-medium text-gray-900">Rs. ${item.subtotal.toFixed(2)}</p>
+                        <p class="font-medium text-gray-900">LKR ${item.subtotal.toFixed(2)}</p>
                     </div>
                 </div>
             `).join('');
@@ -390,18 +444,23 @@
             const total = currentOrder.total || 0;
 
             document.getElementById('billItems').innerHTML = itemsHtml || '<p class="text-center text-gray-500 text-sm py-8">No items in order</p>';
-            document.getElementById('subtotalDisplay').textContent = `Rs. ${subtotal.toFixed(2)}`;
-            document.getElementById('totalDisplay').textContent = `Rs. ${(subtotal - discount).toFixed(2)}`;
+            const tax = currentOrder.tax_amount || 0;
+            document.getElementById('subtotalDisplay').textContent = `LKR ${subtotal.toFixed(2)}`;
+            if (document.getElementById('taxDisplay')) document.getElementById('taxDisplay').textContent = `LKR ${tax.toFixed(2)}`;
+            document.getElementById('totalDisplay').textContent = `LKR ${total.toFixed(2)}`;
+            if (document.getElementById('paymentTotal')) document.getElementById('paymentTotal').textContent = `LKR ${total.toFixed(2)}`;
 
             const liveBillBtn = document.getElementById('liveBillBtn');
-            if (currentOrder.live_bill_enabled) {
-                liveBillBtn.innerHTML = '<i class="fas fa-circle text-purple-600 mr-1"></i>Live Bill ON';
-                liveBillBtn.classList.add('bg-purple-600', 'text-white');
-                liveBillBtn.classList.remove('bg-purple-100', 'text-purple-700');
-            } else {
-                liveBillBtn.innerHTML = '<i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill';
-                liveBillBtn.classList.remove('bg-purple-600', 'text-white');
-                liveBillBtn.classList.add('bg-purple-100', 'text-purple-700');
+            if (liveBillBtn) {
+                if (currentOrder.live_bill_enabled) {
+                    liveBillBtn.innerHTML = '<i class="fas fa-circle text-purple-600 mr-1"></i>Live Bill ON';
+                    liveBillBtn.classList.add('bg-purple-600', 'text-white');
+                    liveBillBtn.classList.remove('bg-purple-100', 'text-purple-700');
+                } else {
+                    liveBillBtn.innerHTML = '<i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill';
+                    liveBillBtn.classList.remove('bg-purple-600', 'text-white');
+                    liveBillBtn.classList.add('bg-purple-100', 'text-purple-700');
+                }
             }
         }
 
@@ -528,6 +587,12 @@
 
             const data = await res.json();
             if (data.success) {
+                if (document.getElementById('paymentModal').classList.contains('open')) {
+                    alert(`Payment Complete!
+Total: LKR ${data.total.toFixed(2)}
+Change: LKR ${data.change ? data.change.toFixed(2) : '0.00'}`);
+                    closeModal('paymentModal');
+                }
                 showFinalBill(data);
             }
         }
@@ -718,7 +783,7 @@
                 <div class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" onclick="resumeOrder(${order.id})">
                     <p class="font-medium text-gray-900">${order.order_number}</p>
                     <p class="text-sm text-gray-600">Table: ${order.table_number || 'N/A'} | Items: ${order.items_count}</p>
-                    <p class="text-sm font-medium text-red-600 mt-1">Rs. ${order.total.toFixed(2)}</p>
+                    <p class="text-sm font-medium text-red-600 mt-1">LKR ${order.total.toFixed(2)}</p>
                 </div>
             `).join('');
         }
@@ -766,6 +831,12 @@
 
             document.getElementById('discountType').addEventListener('change', () => {
                 renderBill();
+            });
+
+            document.getElementById('amountPaid').addEventListener('input', (e) => {
+                const total = parseFloat(document.getElementById('paymentTotal').textContent.replace('LKR ', '')) || 0;
+                const change = parseFloat(e.target.value) - total;
+                document.getElementById('changeDisplay').textContent = `LKR ${Math.max(0, change).toFixed(2)}`;
             });
         }
 

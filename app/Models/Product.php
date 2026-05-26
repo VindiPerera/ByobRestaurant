@@ -9,6 +9,7 @@ class Product extends Model
     protected $fillable = [
         'name',
         'category_id',
+        'supplier_id',
         'product_code',
         'description',
         'cost_price',
@@ -38,6 +39,11 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function supplierRecord()
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
     public function wastages()
     {
         return $this->hasMany(Wastage::class);
@@ -46,5 +52,10 @@ class Product extends Model
     public function orderItems()
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    public function stockMovements()
+    {
+        return $this->hasMany(StockMovement::class);
     }
 }

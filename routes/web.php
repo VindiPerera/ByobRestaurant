@@ -5,7 +5,10 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\WastageController;
 use App\Http\Controllers\PosController;
 
@@ -23,6 +26,9 @@ Route::middleware('auth')->group(function () {
 
     // Customer CRUD routes
     Route::resource('customers', CustomerController::class);
+
+    // Category CRUD routes
+    Route::resource('categories', CategoryController::class)->except(['show']);
 
     // Product (Inventory) CRUD routes
     Route::resource('products', ProductController::class);
@@ -45,10 +51,7 @@ Route::middleware('auth')->group(function () {
     })->name('wastage.index');
 
     // Placeholder routes for other modules
-    Route::get('/suppliers', function () {
-        $modules = auth()->user()->role->modules()->get();
-        return view('modules.suppliers', ['modules' => $modules]);
-    })->name('suppliers.index');
+    Route::resource('suppliers', SupplierController::class)->except(['show']);
 
     // POS routes
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
@@ -69,6 +72,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos/tables', [PosController::class, 'getTables'])->name('pos.tables');
     Route::get('/pos/products', [PosController::class, 'getProducts'])->name('pos.products');
     Route::get('/pos/held-orders', [PosController::class, 'getHeldOrders'])->name('pos.held');
+
+    // Stock adjustments
+    Route::get('/inventory/adjustments', [StockAdjustmentController::class, 'index'])->name('stock.adjustments.index');
+    Route::get('/inventory/adjustments/create', [StockAdjustmentController::class, 'create'])->name('stock.adjustments.create');
+    Route::post('/inventory/adjustments', [StockAdjustmentController::class, 'store'])->name('stock.adjustments.store');
 
     Route::get('/reports', function () {
         $modules = auth()->user()->role->modules()->get();
