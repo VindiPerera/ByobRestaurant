@@ -6,6 +6,8 @@ use App\Models\Product;
 use App\Models\Category;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -33,6 +35,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $isUnlimitedStock = $request->boolean('is_unlimited_stock');
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
@@ -40,20 +44,25 @@ class ProductController extends Controller
             'product_code' => 'nullable|string|unique:products',
             'description' => 'nullable|string|max:1000',
             'cost_price' => 'nullable|numeric|min:0',
-            'price' => 'required|numeric|min:0',
             'selling_price' => 'nullable|numeric|min:0',
-            'quantity' => 'required|integer|min:0',
+            'quantity' => $isUnlimitedStock ? 'nullable|integer|min:0' : 'required|integer|min:0',
             'is_unlimited_stock' => 'nullable|boolean',
             'barcode' => 'nullable|string|unique:products',
-            'image' => 'nullable|string|max:2048',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
             'supplier' => 'nullable|string|max:255',
             'discount' => 'nullable|numeric|min:0|max:100',
             'status' => 'required|in:active,inactive',
         ]);
 
-        $validated['is_unlimited_stock'] = $request->boolean('is_unlimited_stock');
+        $validated['is_unlimited_stock'] = $isUnlimitedStock;
         if ($validated['is_unlimited_stock']) {
             $validated['quantity'] = 0;
+        }
+
+        $validated['price'] = $validated['selling_price'] ?? $validated['cost_price'] ?? 0;
+
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('products', 'public');
         }
 
         Product::create($validated);
@@ -84,6 +93,8 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        $isUnlimitedStock = $request->boolean('is_unlimited_stock');
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
@@ -91,20 +102,37 @@ class ProductController extends Controller
             'product_code' => 'nullable|string|unique:products,product_code,' . $product->id,
             'description' => 'nullable|string|max:1000',
             'cost_price' => 'nullable|numeric|min:0',
-            'price' => 'required|numeric|min:0',
             'selling_price' => 'nullable|numeric|min:0',
-            'quantity' => 'required|integer|min:0',
+            'quantity' => $isUnlimitedStock ? 'nullable|integer|min:0' : 'required|integer|min:0',
             'is_unlimited_stock' => 'nullable|boolean',
             'barcode' => 'nullable|string|unique:products,barcode,' . $product->id,
-            'image' => 'nullable|string|max:2048',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
             'supplier' => 'nullable|string|max:255',
             'discount' => 'nullable|numeric|min:0|max:100',
             'status' => 'required|in:active,inactive',
         ]);
 
-        $validated['is_unlimited_stock'] = $request->boolean('is_unlimited_stock');
+        $validated['is_unlimited_stock'] = $isUnlimitedStock;
         if ($validated['is_unlimited_stock']) {
             $validated['quantity'] = 0;
+        }
+
+        if (! is_null($validated['selling_price'] ?? null)) {
+            $validated['price'] = $validated['selling_price'];
+        } elseif (! is_null($validated['cost_price'] ?? null)) {
+            $validated['price'] = $validated['cost_price'];
+        } else {
+            $validated['price'] = $product->price;
+        }
+
+        if ($request->hasFile('image')) {
+            if ($product->image && ! Str::startsWith($product->image, ['http://', 'https://'])) {
+                Storage::disk('public')->delete($product->image);
+            }
+
+            $validated['image'] = $request->file('image')->store('products', 'public');
+        } else {
+            unset($validated['image']);
         }
 
         $product->update($validated);

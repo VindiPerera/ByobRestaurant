@@ -27,8 +27,6 @@
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Color</th>
-                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Icon</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Sort Order</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                                 <th class="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
@@ -38,18 +36,6 @@
                             @foreach($categories as $category)
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $category->name }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">
-                                        <span class="inline-flex items-center gap-2">
-                                            <span class="w-4 h-4 rounded-full border border-gray-300" style="background: {{ $category->color }};"></span>
-                                            {{ $category->color }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">
-                                        <span class="inline-flex items-center gap-2">
-                                            <i class="fas fa-{{ $category->icon }} text-gray-700"></i>
-                                            {{ $category->icon }}
-                                        </span>
-                                    </td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $category->sort_order }}</td>
                                     <td class="px-6 py-4 text-sm">
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $category->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">

@@ -10,7 +10,7 @@
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-8 max-w-4xl">
-            <form action="{{ route('products.update', $product) }}" method="POST" class="space-y-6">
+            <form action="{{ route('products.update', $product) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
                 @csrf
                 @method('PUT')
 
@@ -78,16 +78,6 @@
                     </div>
 
                     <div>
-                        <label for="price" class="block text-sm font-semibold text-gray-900 mb-2">Price <span class="text-red-600">*</span></label>
-                        <input type="number" name="price" id="price" value="{{ old('price', $product->price) }}" required step="0.01" min="0"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('price') ? 'border-red-600' : '' }}"
-                            placeholder="0.00">
-                        @error('price')
-                            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
                         <label for="selling_price" class="block text-sm font-semibold text-gray-900 mb-2">Selling Price</label>
                         <input type="number" name="selling_price" id="selling_price" value="{{ old('selling_price', $product->selling_price) }}" step="0.01" min="0"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('selling_price') ? 'border-red-600' : '' }}"
@@ -119,13 +109,13 @@
 
                     <div>
                         <label for="quantity" class="block text-sm font-semibold text-gray-900 mb-2">Quantity <span class="text-red-600">*</span></label>
-                        <input type="number" name="quantity" id="quantity" value="{{ old('quantity', $product->quantity) }}" required min="0"
+                        <input type="number" name="quantity" id="quantity" value="{{ old('quantity', $product->quantity) }}" min="0"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('quantity') ? 'border-red-600' : '' }}"
                             placeholder="0">
                         @error('quantity')
                             <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
                         @enderror
-                        <p class="text-xs text-gray-500 mt-2">If unlimited stock is enabled, quantity is ignored.</p>
+                        <p class="text-xs text-gray-500 mt-2">Required only when unlimited stock is off.</p>
                     </div>
 
                     <div>
@@ -164,13 +154,21 @@
                 </div>
 
                 <div>
-                    <label for="image" class="block text-sm font-semibold text-gray-900 mb-2">Image URL</label>
-                    <input type="text" name="image" id="image" value="{{ old('image', $product->image) }}"
+                    <label for="image" class="block text-sm font-semibold text-gray-900 mb-2">Product Image</label>
+                    <input type="file" name="image" id="image" accept="image/*"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('image') ? 'border-red-600' : '' }}"
-                        placeholder="https://example.com/image.jpg">
+                        >
                     @error('image')
                         <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
                     @enderror
+                    @if($product->image)
+                        <p class="text-xs text-gray-500 mt-2">Current image:</p>
+                        <img
+                            src="{{ \Illuminate\Support\Str::startsWith($product->image, ['http://', 'https://']) ? $product->image : asset('storage/' . $product->image) }}"
+                            alt="{{ $product->name }}"
+                            class="mt-2 w-28 h-28 object-cover rounded-lg border border-gray-200"
+                        >
+                    @endif
                 </div>
 
                 <div class="flex gap-4 pt-4">
@@ -184,4 +182,25 @@
             </form>
         </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const unlimitedCheckbox = document.querySelector('input[name="is_unlimited_stock"]');
+        const quantityInput = document.getElementById('quantity');
+
+        const toggleQuantity = () => {
+            const isUnlimited = unlimitedCheckbox.checked;
+            quantityInput.disabled = isUnlimited;
+            quantityInput.required = !isUnlimited;
+            if (isUnlimited) {
+                quantityInput.value = 0;
+            }
+        };
+
+        toggleQuantity();
+        unlimitedCheckbox.addEventListener('change', toggleQuantity);
+    });
+</script>
 @endsection
