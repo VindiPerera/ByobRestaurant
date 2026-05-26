@@ -29,6 +29,14 @@
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
         .modal.open { display: flex; }
         .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .receipt { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; padding: 10px; }
+        @media print {
+            body * { display: none; }
+            .receipt { display: block; width: 80mm; margin: 0; padding: 0; background: white; }
+            .receipt * { display: block; }
+        }
+        .live-bill-indicator { animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
@@ -91,6 +99,17 @@
                 </div>
             </div>
 
+            <!-- Customer Details Section -->
+            <div id="customerSection" class="bg-white border-b border-gray-200 p-3 space-y-2 hidden">
+                <label class="text-xs font-medium text-gray-700">Customer Name</label>
+                <input type="text" id="customerName" placeholder="Enter customer name" class="w-full px-3 py-1 border border-gray-300 rounded text-sm">
+                <label class="text-xs font-medium text-gray-700">Phone Number</label>
+                <input type="text" id="customerPhone" placeholder="Enter phone number" class="w-full px-3 py-1 border border-gray-300 rounded text-sm">
+                <button onclick="saveCustomerDetails()" class="w-full text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded">
+                    <i class="fas fa-save mr-1"></i>Save
+                </button>
+            </div>
+
             <div class="flex-1 overflow-y-auto">
                 <div class="p-4" id="billItems">
                     <p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>
@@ -127,20 +146,31 @@
                 </div>
 
                 <div id="orderControls" class="space-y-2">
-                    <button onclick="completeOrder()" class="w-full btn-primary">
-                        <i class="fas fa-credit-card mr-2"></i>Pay
-                    </button>
                     <div class="flex gap-2">
-                        <button onclick="holdCurrentOrder()" class="flex-1 btn-secondary">
+                        <button onclick="toggleLiveBill()" id="liveBillBtn" class="flex-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-2 rounded font-medium">
+                            <i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill
+                        </button>
+                        <button onclick="completeOrder()" class="flex-1 btn-primary text-sm">
+                            <i class="fas fa-credit-card mr-2"></i>Pay
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="holdCurrentOrder()" class="flex-1 btn-secondary text-sm">
                             <i class="fas fa-pause mr-1"></i>Hold
                         </button>
-                        <button onclick="printKot()" class="flex-1 btn-secondary">
+                        <button onclick="printKot()" class="flex-1 btn-secondary text-sm">
                             <i class="fas fa-print mr-1"></i>KOT
                         </button>
-                        <button onclick="printBot()" class="flex-1 btn-secondary">
+                        <button onclick="printBot()" class="flex-1 btn-secondary text-sm">
                             <i class="fas fa-wine-glass mr-1"></i>BOT
                         </button>
                     </div>
+                    <button onclick="showWaiterBill()" id="waiterBillBtn" class="w-full text-sm bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-2 rounded font-medium hidden">
+                        <i class="fas fa-receipt mr-1"></i>Waiter Bill
+                    </button>
+                    <button onclick="closeTableSession()" id="closeTableBtn" class="w-full text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded font-medium hidden">
+                        <i class="fas fa-door-open mr-1"></i>Close Table
+                    </button>
                 </div>
             </div>
         </div>
@@ -195,6 +225,36 @@
         </div>
     </div>
 
+    <!-- WAITER BILL MODAL -->
+    <div id="waiterBillModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">Waiter Bill</h2>
+                <button onclick="closeModal('waiterBillModal')" class="text-gray-500 hover:text-gray-700 text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div id="waiterBillContent" class="space-y-4 max-h-96 overflow-y-auto">
+                <!-- Bill content loaded via JS -->
+            </div>
+
+            <div class="flex gap-2 mt-6">
+                <button onclick="closeModal('waiterBillModal')" class="flex-1 btn-secondary">Back</button>
+                <button onclick="proceedToPayment()" class="flex-1 btn-primary">Generate Final Bill</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FINAL INVOICE MODAL -->
+    <div id="invoiceModal" class="modal">
+        <div class="modal-content" style="max-width: 100mm;">
+            <div id="invoiceContent" class="receipt">
+                <!-- Invoice loaded via JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- KOT MODAL -->
     <div id="kotModal" class="modal">
         <div class="modal-content">
@@ -208,6 +268,7 @@
             <div class="space-y-4">
                 <div class="bg-gray-50 p-3 rounded-lg">
                     <p class="text-sm font-medium text-gray-900" id="kotOrderNumber">Order #</p>
+                    <p class="text-sm text-gray-600" id="kotTableNumber">Table #</p>
                 </div>
 
                 <div id="kotItems" class="bg-white border border-gray-300 p-4 rounded-lg space-y-3 max-h-64 overflow-y-auto">
@@ -237,6 +298,7 @@
             <div class="space-y-4">
                 <div class="bg-gray-50 p-3 rounded-lg">
                     <p class="text-sm font-medium text-gray-900" id="botOrderNumber">Order #</p>
+                    <p class="text-sm text-gray-600" id="botTableNumber">Table #</p>
                 </div>
 
                 <div id="botItems" class="bg-white border border-gray-300 p-4 rounded-lg space-y-3 max-h-64 overflow-y-auto">
@@ -321,14 +383,20 @@
 
             container.innerHTML = allTables
                 .filter(t => filter === 'all' || t.section === filter)
-                .map(table => `
-                    <div class="table-card ${table.status} p-3 rounded-lg text-center ${currentTable?.id === table.id ? 'active' : ''}"
-                         onclick="selectTable(${table.id})">
-                        <div class="font-bold text-lg text-gray-900">${table.table_number}</div>
-                        <div class="text-xs text-gray-600">Cap: ${table.capacity}</div>
-                        ${table.has_order ? `<div class="text-xs font-medium text-red-600 mt-1">📦 ${table.order_items_count}</div>` : ''}
-                    </div>
-                `).join('');
+                .map(table => {
+                    const tableOrder = table.has_order ? `<div class="text-xs font-medium text-red-600 mt-1">📦 ${table.order_items_count}</div>` : '';
+                    const occupiedTime = table.occupied_at ? ` • ${new Date(table.occupied_at).toLocaleTimeString()}` : '';
+                    return `
+                        <div class="table-card ${table.status} p-3 rounded-lg text-center ${currentTable?.id === table.id ? 'active' : ''}"
+                             onclick="selectTable(${table.id})">
+                            <div class="font-bold text-lg text-gray-900">${table.table_number}</div>
+                            <div class="text-xs text-gray-600">${table.name}</div>
+                            <div class="text-xs text-gray-500">Cap: ${table.capacity}</div>
+                            ${tableOrder}
+                            ${occupiedTime}
+                        </div>
+                    `;
+                }).join('');
         }
 
         function renderProducts() {
@@ -370,7 +438,7 @@
                     })
                 });
                 const data = await res.json();
-                currentOrder = { id: data.order_id, items: [], subtotal: 0, tax_amount: 0, total: 0, discount_amount: 0 };
+                currentOrder = { id: data.order_id, items: [], subtotal: 0, tax_amount: 0, total: 0, discount_amount: 0, customer_name: null, customer_phone: null, live_bill_enabled: false };
             }
 
             renderTableView();
@@ -381,6 +449,11 @@
         function renderTableView() {
             document.getElementById('selectedTable').textContent = `Table ${currentTable.table_number} - ${currentTable.name}`;
             document.getElementById('orderType').textContent = 'Dine In Order';
+
+            const customerSection = document.getElementById('customerSection');
+            customerSection.classList.remove('hidden');
+            document.getElementById('customerName').value = currentOrder.customer_name || '';
+            document.getElementById('customerPhone').value = currentOrder.customer_phone || '';
         }
 
         async function addProductToOrder(productId, productName, price) {
@@ -399,6 +472,9 @@
             if (data.success) {
                 await loadCurrentOrder();
                 renderBill();
+                if (currentOrder.live_bill_enabled) {
+                    printLiveBill();
+                }
             }
         }
 
@@ -444,6 +520,18 @@
             document.getElementById('taxDisplay').textContent = `Rs. ${tax.toFixed(2)}`;
             document.getElementById('totalDisplay').textContent = `Rs. ${total.toFixed(2)}`;
             document.getElementById('paymentTotal').textContent = `Rs. ${total.toFixed(2)}`;
+
+            // Update live bill button state
+            const liveBillBtn = document.getElementById('liveBillBtn');
+            if (currentOrder.live_bill_enabled) {
+                liveBillBtn.innerHTML = '<i class="fas fa-circle text-purple-600 live-bill-indicator mr-1"></i>Live Bill ON';
+                liveBillBtn.classList.add('bg-purple-600', 'text-white');
+                liveBillBtn.classList.remove('bg-purple-100', 'text-purple-700');
+            } else {
+                liveBillBtn.innerHTML = '<i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill';
+                liveBillBtn.classList.remove('bg-purple-600', 'text-white');
+                liveBillBtn.classList.add('bg-purple-100', 'text-purple-700');
+            }
         }
 
         async function increaseQty(itemId) {
@@ -459,6 +547,9 @@
             if ((await res.json()).success) {
                 await loadCurrentOrder();
                 renderBill();
+                if (currentOrder.live_bill_enabled) {
+                    printLiveBill();
+                }
             }
         }
 
@@ -475,6 +566,9 @@
             if ((await res.json()).success) {
                 await loadCurrentOrder();
                 renderBill();
+                if (currentOrder.live_bill_enabled) {
+                    printLiveBill();
+                }
             }
         }
 
@@ -487,7 +581,142 @@
             if ((await res.json()).success) {
                 await loadCurrentOrder();
                 renderBill();
+                if (currentOrder.live_bill_enabled) {
+                    printLiveBill();
+                }
             }
+        }
+
+        async function saveCustomerDetails() {
+            if (!currentOrder?.id) return;
+
+            const res = await fetch(`{{ route("pos.order.customer", ":id") }}`.replace(':id', currentOrder.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customer_name: document.getElementById('customerName').value,
+                    customer_phone: document.getElementById('customerPhone').value
+                })
+            });
+
+            if ((await res.json()).success) {
+                await loadCurrentOrder();
+            }
+        }
+
+        async function toggleLiveBill() {
+            if (!currentOrder?.id) return;
+
+            const res = await fetch(`{{ route("pos.order.live_bill", ":id") }}`.replace(':id', currentOrder.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                await loadCurrentOrder();
+                renderBill();
+            }
+        }
+
+        function printLiveBill() {
+            const printWindow = window.open('', '', 'width=80mm,height=auto');
+            const subtotal = currentOrder.subtotal || 0;
+            const tax = subtotal * 0.10;
+            const total = subtotal + tax;
+
+            let itemsHtml = currentOrder.items.map(item => `
+                <div style="margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 8px;">
+                    <div style="font-weight: bold;">${item.product_name}</div>
+                    <div style="font-size: 12px; display: flex; justify-content: space-between;">
+                        <span>${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</span>
+                        <span>Rs. ${item.subtotal.toFixed(2)}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <style>
+                        body { font-family: 'Courier New', monospace; width: 80mm; margin: 0; padding: 10px; }
+                        .receipt { text-align: center; }
+                        .header { font-weight: bold; margin-bottom: 10px; }
+                        .items { margin: 10px 0; text-align: left; }
+                        .total { font-weight: bold; margin-top: 10px; border-top: 1px solid #000; padding-top: 5px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt">
+                        <div class="header">LIVE BILL</div>
+                        <div>Table ${currentTable.table_number}</div>
+                        <div class="items">${itemsHtml}</div>
+                        <div class="total">
+                            <div>Subtotal: Rs. ${subtotal.toFixed(2)}</div>
+                            <div>Tax (10%): Rs. ${tax.toFixed(2)}</div>
+                            <div style="font-size: 16px;">Total: Rs. ${total.toFixed(2)}</div>
+                        </div>
+                        <div style="margin-top: 10px; font-size: 12px;">${new Date().toLocaleString()}</div>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        async function showWaiterBill() {
+            if (!currentOrder?.id || currentOrder.items.length === 0) {
+                alert('Add items to order first');
+                return;
+            }
+
+            const res = await fetch(`{{ route("pos.order.waiter_bill", ":id") }}`.replace(':id', currentOrder.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                let itemsHtml = data.items.map(item => `
+                    <div class="flex justify-between py-2 border-b border-gray-200">
+                        <div>
+                            <p class="font-medium text-gray-900">${item.product_name}</p>
+                            <p class="text-xs text-gray-500">${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</p>
+                        </div>
+                        <p class="font-medium text-gray-900">Rs. ${item.subtotal.toFixed(2)}</p>
+                    </div>
+                `).join('');
+
+                document.getElementById('waiterBillContent').innerHTML = `
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-sm font-medium text-gray-900">Order #${data.order_number}</p>
+                        <p class="text-sm text-gray-600">Table ${data.table_number}</p>
+                        ${data.customer_name ? `<p class="text-sm text-gray-600">Customer: ${data.customer_name}</p>` : ''}
+                    </div>
+                    <div>${itemsHtml}</div>
+                    <div class="space-y-2 bg-gray-50 p-3 rounded-lg">
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Subtotal:</span>
+                            <span class="font-medium">Rs. ${data.subtotal.toFixed(2)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-700">Tax (10%):</span>
+                            <span class="font-medium">Rs. ${data.tax_amount.toFixed(2)}</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold text-red-600 border-t border-gray-200 pt-2">
+                            <span>Total:</span>
+                            <span>Rs. ${data.total.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+                openModal('waiterBillModal');
+            }
+        }
+
+        function proceedToPayment() {
+            closeModal('waiterBillModal');
+            completeOrder();
         }
 
         async function completeOrder() {
@@ -522,15 +751,111 @@
 
             const data = await res.json();
             if (data.success) {
-                alert(`Payment Complete!\nTotal: Rs. ${data.total.toFixed(2)}\nChange: Rs. ${data.change.toFixed(2)}`);
-                closeModal('paymentModal');
-                currentOrder = null;
-                currentTable = null;
-                await loadTables();
-                renderTables();
-                document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
-                document.getElementById('selectedTable').textContent = 'No table selected';
+                showFinalInvoice(data);
             }
+        }
+
+        function showFinalInvoice(paymentData) {
+            closeModal('paymentModal');
+
+            const subtotal = currentOrder.subtotal;
+            const tax = currentOrder.tax_amount;
+            const total = currentOrder.total;
+            const invoiceHtml = `
+                <div style="width: 80mm; font-family: 'Courier New', monospace; text-align: center;">
+                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">INVOICE</div>
+                    <div style="margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+                        <div style="font-weight: bold;">Restaurant BYOB</div>
+                        <div style="font-size: 12px;">POS System</div>
+                    </div>
+
+                    <div style="text-align: left; margin-bottom: 10px; font-size: 12px;">
+                        <div>Order #: ${currentOrder.order_number}</div>
+                        <div>Table: ${currentTable.table_number}</div>
+                        ${currentOrder.customer_name ? `<div>Customer: ${currentOrder.customer_name}</div>` : ''}
+                        ${currentOrder.customer_phone ? `<div>Phone: ${currentOrder.customer_phone}</div>` : ''}
+                        <div>Date: ${new Date().toLocaleString()}</div>
+                    </div>
+
+                    <div style="border-top: 1px solid #000; border-bottom: 1px solid #000; margin: 10px 0; padding: 10px 0; text-align: left; font-size: 12px;">
+                        ${currentOrder.items.map(item => `
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>${item.product_name}</span>
+                                <span>${item.quantity}x Rs. ${item.unit_price.toFixed(2)}</span>
+                            </div>
+                            <div style="text-align: right; margin-bottom: 5px;">Rs. ${item.subtotal.toFixed(2)}</div>
+                        `).join('')}
+                    </div>
+
+                    <div style="text-align: left; margin: 10px 0; font-size: 12px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Subtotal:</span>
+                            <span>Rs. ${subtotal.toFixed(2)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Tax (10%):</span>
+                            <span>Rs. ${tax.toFixed(2)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px; padding-top: 5px; border-top: 1px solid #000;">
+                            <span>Total:</span>
+                            <span>Rs. ${total.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div style="text-align: left; margin: 10px 0; font-size: 12px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Method:</span>
+                            <span>${paymentMethod}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Paid:</span>
+                            <span>Rs. ${paymentData.total.toFixed(2)}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Change:</span>
+                            <span>Rs. ${paymentData.change.toFixed(2)}</span>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; font-weight: bold; font-size: 14px; color: #00aa00;">
+                        ✓ PAID ✓
+                    </div>
+
+                    <div style="margin-top: 10px; font-size: 10px; text-align: center; color: #666;">
+                        Thank you for your order!
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('invoiceContent').innerHTML = invoiceHtml;
+            openModal('invoiceModal');
+
+            setTimeout(() => {
+                const printWindow = window.open('', '', 'width=80mm,height=auto');
+                printWindow.document.write(`<html><head><style>body { font-family: 'Courier New', monospace; width: 80mm; margin: 0; padding: 10px; }</style></head><body>${invoiceHtml}</body></html>`);
+                printWindow.document.close();
+                printWindow.print();
+                printWindow.close();
+
+                setTimeout(() => {
+                    closeModal('invoiceModal');
+                    resetOrder();
+                }, 1000);
+            }, 500);
+        }
+
+        function resetOrder() {
+            currentOrder = null;
+            currentTable = null;
+            document.getElementById('customerSection').classList.add('hidden');
+            document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
+            document.getElementById('selectedTable').textContent = 'No table selected';
+            document.getElementById('orderType').textContent = '-';
+            document.getElementById('discountType').value = '';
+            document.getElementById('discountValue').value = '0';
+            document.getElementById('amountPaid').value = '';
+            loadTables();
+            renderTables();
         }
 
         async function printKot() {
@@ -542,6 +867,7 @@
 
             const data = await res.json();
             document.getElementById('kotOrderNumber').textContent = `Order #${data.order_number}`;
+            document.getElementById('kotTableNumber').textContent = `Table #${currentTable.table_number}`;
             document.getElementById('kotItems').innerHTML = data.items.map(item => `
                 <div class="border-b pb-2">
                     <p class="font-medium text-gray-900">${item.product_name} x${item.quantity}</p>
@@ -561,6 +887,7 @@
 
             const data = await res.json();
             document.getElementById('botOrderNumber').textContent = `Order #${data.order_number}`;
+            document.getElementById('botTableNumber').textContent = `Table #${currentTable.table_number}`;
             document.getElementById('botItems').innerHTML = data.items.map(item => `
                 <div class="border-b pb-2">
                     <p class="font-medium text-gray-900">${item.product_name} x${item.quantity}</p>
@@ -579,13 +906,26 @@
             });
 
             if ((await res.json()).success) {
-                currentOrder = null;
-                currentTable = null;
-                await loadTables();
-                renderTables();
-                document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
-                document.getElementById('selectedTable').textContent = 'No table selected';
+                resetOrder();
                 loadHeldOrders();
+            }
+        }
+
+        async function closeTableSession() {
+            if (!currentOrder?.id) return;
+
+            if (currentOrder.items.length === 0) {
+                const res = await fetch(`{{ route("pos.order.close_table", ":id") }}`.replace(':id', currentOrder.id), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
+
+                if ((await res.json()).success) {
+                    resetOrder();
+                }
+            } else {
+                alert('Please complete payment before closing the table');
+                completeOrder();
             }
         }
 
@@ -622,7 +962,7 @@
 
             renderBill();
             closeModal('heldOrdersModal');
-            await loadTables();
+            loadTables();
             renderTables();
         }
 
@@ -646,10 +986,6 @@
                 loadProducts(e.target.value, categoryId);
             });
 
-            document.getElementById('discountValue').addEventListener('input', () => {
-                // Update display when discount changes
-            });
-
             document.getElementById('amountPaid').addEventListener('input', (e) => {
                 const total = parseFloat(document.getElementById('paymentTotal').textContent.replace('Rs. ', '')) || 0;
                 const change = parseFloat(e.target.value) - total;
@@ -664,7 +1000,6 @@
                 });
             });
 
-            // Set first payment method as active
             document.querySelector('[data-method="cash"]').click();
         }
 
@@ -684,7 +1019,6 @@
             window.print();
         }
 
-        // Initialize on load
         window.addEventListener('load', initPos);
     </script>
 </body>

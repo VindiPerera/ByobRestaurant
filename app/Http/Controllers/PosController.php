@@ -83,6 +83,8 @@ class PosController extends Controller
         $validated = $request->validate([
             'table_id' => 'nullable|exists:restaurant_tables,id',
             'customer_id' => 'nullable|exists:customers,id',
+            'customer_name' => 'nullable|string',
+            'customer_phone' => 'nullable|string',
             'order_type' => 'required|in:dine_in,takeaway,delivery,vip_room',
             'waiter_name' => 'nullable|string',
         ]);
@@ -91,6 +93,8 @@ class PosController extends Controller
             'order_number' => 'ORD-' . Str::random(8),
             'table_id' => $validated['table_id'] ?? null,
             'customer_id' => $validated['customer_id'] ?? null,
+            'customer_name' => $validated['customer_name'] ?? null,
+            'customer_phone' => $validated['customer_phone'] ?? null,
             'user_id' => auth()->id(),
             'order_type' => $validated['order_type'],
             'waiter_name' => $validated['waiter_name'] ?? auth()->user()->name,
@@ -121,6 +125,10 @@ class PosController extends Controller
             'table_number' => $order->table?->table_number,
             'order_type' => $order->order_type,
             'status' => $order->status,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'live_bill_enabled' => $order->live_bill_enabled,
+            'waiter_bill_printed_at' => $order->waiter_bill_printed_at,
             'subtotal' => (float) $order->subtotal,
             'discount_amount' => (float) $order->discount_amount,
             'tax_amount' => (float) $order->tax_amount,
@@ -306,5 +314,94 @@ class PosController extends Controller
             'tax_amount' => $subtotal * 0.10,
             'total' => $subtotal + ($subtotal * 0.10),
         ]);
+    }
+
+    public function updateCustomer(Request $request, Order $order)
+    {
+        $validated = $request->validate([
+            'customer_name' => 'nullable|string',
+            'customer_phone' => 'nullable|string',
+        ]);
+
+        $order->update([
+            'customer_name' => $validated['customer_name'],
+            'customer_phone' => $validated['customer_phone'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Customer details updated',
+        ]);
+    }
+
+    public function printWaiterBill(Order $order)
+    {
+        $order->load('items', 'table');
+        $order->update(['waiter_bill_printed_at' => now()]);
+
+        $subtotal = $order->items->sum('subtotal');
+        $tax = $subtotal * 0.10;
+        $total = $subtotal + $tax;
+
+        return response()->json([
+            'success' => true,
+            'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'subtotal' => (float) $subtotal,
+            'tax_amount' => (float) $tax,
+            'total' => (float) $total,
+            'items' => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
+                'kitchen_notes' => $item->kitchen_notes,
+            ]),
+        ]);
+    }
+
+    public function toggleLiveBill(Request $request, Order $order)
+    {
+        $order->update(['live_bill_enabled' => !$order->live_bill_enabled]);
+
+        return response()->json([
+            'success' => true,
+            'live_bill_enabled' => $order->live_bill_enabled,
+            'message' => $order->live_bill_enabled ? 'Live bill enabled' : 'Live bill disabled',
+        ]);
+    }
+
+    public function closeTable(Order $order)
+    {
+        if ($order->items->count() === 0) {
+            $order->update(['status' => 'cancelled']);
+            if ($order->table_id) {
+                RestaurantTable::find($order->table_id)->update([
+                    'status' => 'available',
+                    'occupied_at' => null,
+                ]);
+            }
+            return response()->json(['success' => true, 'message' => 'Table closed']);
+        }
+
+        return response()->json(['error' => 'Cannot close table with active order'], 400);
+    }
+
+    public function getTableOrders(RestaurantTable $table)
+    {
+        $orders = $table->orders()->with('items')->latest()->get();
+
+        return response()->json($orders->map(fn($order) => [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'status' => $order->status,
+            'customer_name' => $order->customer_name,
+            'items_count' => $order->items->count(),
+            'subtotal' => (float) $order->subtotal,
+            'total' => (float) $order->total,
+            'created_at' => $order->created_at,
+        ]));
     }
 }

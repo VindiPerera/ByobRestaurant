@@ -61,6 +61,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/pos/order/{order}/complete', [PosController::class, 'completeOrder'])->name('pos.order.complete');
     Route::post('/pos/order/{order}/kot', [PosController::class, 'printKot'])->name('pos.order.kot');
     Route::post('/pos/order/{order}/bot', [PosController::class, 'printBot'])->name('pos.order.bot');
+    Route::post('/pos/order/{order}/customer', [PosController::class, 'updateCustomer'])->name('pos.order.customer');
+    Route::post('/pos/order/{order}/waiter-bill', [PosController::class, 'printWaiterBill'])->name('pos.order.waiter_bill');
+    Route::post('/pos/order/{order}/live-bill', [PosController::class, 'toggleLiveBill'])->name('pos.order.live_bill');
+    Route::post('/pos/order/{order}/close-table', [PosController::class, 'closeTable'])->name('pos.order.close_table');
+    Route::get('/pos/table/{table}/orders', [PosController::class, 'getTableOrders'])->name('pos.table.orders');
     Route::get('/pos/tables', [PosController::class, 'getTables'])->name('pos.tables');
     Route::get('/pos/products', [PosController::class, 'getProducts'])->name('pos.products');
     Route::get('/pos/held-orders', [PosController::class, 'getHeldOrders'])->name('pos.held');
