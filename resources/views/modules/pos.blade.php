@@ -101,7 +101,7 @@
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                         <span>Subtotal:</span>
-                        <span id="subtotalDisplay" class="font-medium">Rs. 0.00</span>
+                        <span id="subtotalDisplay" class="font-medium">LKR 0.00</span>
                     </div>
 
                     <div class="flex justify-between items-center">
@@ -117,12 +117,12 @@
                     </div>
                     <div class="flex justify-between">
                         <span>Tax (10%):</span>
-                        <span id="taxDisplay" class="font-medium">Rs. 0.00</span>
+                        <span id="taxDisplay" class="font-medium">LKR 0.00</span>
                     </div>
 
                     <div class="flex justify-between text-lg font-bold border-t border-gray-200 pt-2 text-red-600">
                         <span>Total:</span>
-                        <span id="totalDisplay">Rs. 0.00</span>
+                        <span id="totalDisplay">LKR 0.00</span>
                     </div>
                 </div>
 
@@ -174,7 +174,7 @@
 
                 <div class="bg-gray-50 p-3 rounded-lg">
                     <p class="text-sm text-gray-600 mb-1">Total Amount</p>
-                    <p class="text-3xl font-bold text-red-600" id="paymentTotal">Rs. 0.00</p>
+                    <p class="text-3xl font-bold text-red-600" id="paymentTotal">LKR 0.00</p>
                 </div>
 
                 <div>
@@ -184,7 +184,7 @@
 
                 <div class="bg-green-50 p-3 rounded-lg">
                     <p class="text-sm text-gray-600 mb-1">Change</p>
-                    <p class="text-2xl font-bold text-green-600" id="changeDisplay">Rs. 0.00</p>
+                    <p class="text-2xl font-bold text-green-600" id="changeDisplay">LKR 0.00</p>
                 </div>
 
                 <div class="flex gap-2">
@@ -344,7 +344,7 @@
                         <i class="fas fa-utensils text-gray-400 text-2xl"></i>
                     </div>
                     <p class="font-medium text-gray-900 text-sm line-clamp-2">${product.name}</p>
-                    <p class="text-red-600 font-bold text-lg mt-1">Rs. ${product.price.toFixed(2)}</p>
+                    <p class="text-red-600 font-bold text-lg mt-1">LKR ${product.price.toFixed(2)}</p>
                 </div>
             `).join('');
         }
@@ -418,7 +418,7 @@
                 <div class="bill-item">
                     <div class="flex-1">
                         <p class="font-medium text-gray-900">${item.product_name}</p>
-                        <p class="text-xs text-gray-500">Rs. ${item.unit_price.toFixed(2)}</p>
+                        <p class="text-xs text-gray-500">LKR ${item.unit_price.toFixed(2)}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="decreaseQty(${item.id})" class="w-6 h-6 border border-gray-300 rounded text-xs hover:bg-gray-100">-</button>
@@ -429,7 +429,7 @@
                         </button>
                     </div>
                     <div class="w-20 text-right">
-                        <p class="font-medium text-gray-900">Rs. ${item.subtotal.toFixed(2)}</p>
+                        <p class="font-medium text-gray-900">LKR ${item.subtotal.toFixed(2)}</p>
                     </div>
                 </div>
             `).join('');
@@ -440,10 +440,10 @@
             const total = currentOrder.total || 0;
 
             document.getElementById('billItems').innerHTML = itemsHtml || '<p class="text-center text-gray-500 text-sm py-8">No items in order</p>';
-            document.getElementById('subtotalDisplay').textContent = `Rs. ${subtotal.toFixed(2)}`;
-            document.getElementById('taxDisplay').textContent = `Rs. ${tax.toFixed(2)}`;
-            document.getElementById('totalDisplay').textContent = `Rs. ${total.toFixed(2)}`;
-            document.getElementById('paymentTotal').textContent = `Rs. ${total.toFixed(2)}`;
+            document.getElementById('subtotalDisplay').textContent = `LKR ${subtotal.toFixed(2)}`;
+            document.getElementById('taxDisplay').textContent = `LKR ${tax.toFixed(2)}`;
+            document.getElementById('totalDisplay').textContent = `LKR ${total.toFixed(2)}`;
+            document.getElementById('paymentTotal').textContent = `LKR ${total.toFixed(2)}`;
         }
 
         async function increaseQty(itemId) {
@@ -522,7 +522,7 @@
 
             const data = await res.json();
             if (data.success) {
-                alert(`Payment Complete!\nTotal: Rs. ${data.total.toFixed(2)}\nChange: Rs. ${data.change.toFixed(2)}`);
+                alert(`Payment Complete!\nTotal: LKR ${data.total.toFixed(2)}\nChange: LKR ${data.change.toFixed(2)}`);
                 closeModal('paymentModal');
                 currentOrder = null;
                 currentTable = null;
@@ -604,7 +604,7 @@
                 <div class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" onclick="resumeOrder(${order.id})">
                     <p class="font-medium text-gray-900">${order.order_number}</p>
                     <p class="text-sm text-gray-600">Table: ${order.table_number || 'N/A'} | Items: ${order.items_count}</p>
-                    <p class="text-sm font-medium text-red-600 mt-1">Rs. ${order.total.toFixed(2)}</p>
+                    <p class="text-sm font-medium text-red-600 mt-1">LKR ${order.total.toFixed(2)}</p>
                 </div>
             `).join('');
         }
@@ -651,9 +651,9 @@
             });
 
             document.getElementById('amountPaid').addEventListener('input', (e) => {
-                const total = parseFloat(document.getElementById('paymentTotal').textContent.replace('Rs. ', '')) || 0;
+                const total = parseFloat(document.getElementById('paymentTotal').textContent.replace('LKR ', '')) || 0;
                 const change = parseFloat(e.target.value) - total;
-                document.getElementById('changeDisplay').textContent = `Rs. ${Math.max(0, change).toFixed(2)}`;
+                document.getElementById('changeDisplay').textContent = `LKR ${Math.max(0, change).toFixed(2)}`;
             });
 
             document.querySelectorAll('.payment-method-btn').forEach(btn => {

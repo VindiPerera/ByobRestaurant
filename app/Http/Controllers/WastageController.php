@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Wastage;
 use App\Models\Product;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 
 class WastageController extends Controller
@@ -39,12 +40,23 @@ class WastageController extends Controller
         ]);
 
         $product = Product::find($validated['product_id']);
-        if ($product->quantity < $validated['quantity']) {
+        if (!$product->is_unlimited_stock && $product->quantity < $validated['quantity']) {
             return back()->withErrors(['quantity' => 'Not enough quantity available']);
         }
 
-        $product->decrement('quantity', $validated['quantity']);
-        Wastage::create($validated);
+        if (!$product->is_unlimited_stock) {
+            $product->decrement('quantity', $validated['quantity']);
+        }
+
+        $wastage = Wastage::create($validated);
+        $this->logStockMovement(
+            $product,
+            'decrease',
+            $validated['quantity'],
+            $validated['reason'],
+            $validated['notes'] ?? null,
+            $wastage->id
+        );
 
         return redirect()->route('wastage.index')->with('success', 'Wastage recorded successfully');
     }
@@ -84,16 +96,55 @@ class WastageController extends Controller
 
         if ($product->id === $oldProduct->id) {
             $quantityDiff = $validated['quantity'] - $wastage->quantity;
-            if ($product->quantity < $quantityDiff) {
+            if ($quantityDiff > 0 && !$product->is_unlimited_stock && $product->quantity < $quantityDiff) {
                 return back()->withErrors(['quantity' => 'Not enough quantity available']);
             }
-            $product->decrement('quantity', $quantityDiff);
+            if ($quantityDiff !== 0) {
+                if (!$product->is_unlimited_stock) {
+                    if ($quantityDiff > 0) {
+                        $product->decrement('quantity', $quantityDiff);
+                    } else {
+                        $product->increment('quantity', abs($quantityDiff));
+                    }
+                }
+
+                $this->logStockMovement(
+                    $product,
+                    $quantityDiff > 0 ? 'decrease' : 'increase',
+                    abs($quantityDiff),
+                    $validated['reason'],
+                    $validated['notes'] ?? null,
+                    $wastage->id
+                );
+            }
         } else {
-            $oldProduct->increment('quantity', $wastage->quantity);
-            if ($product->quantity < $validated['quantity']) {
+            if (!$oldProduct->is_unlimited_stock) {
+                $oldProduct->increment('quantity', $wastage->quantity);
+            }
+            $this->logStockMovement(
+                $oldProduct,
+                'increase',
+                $wastage->quantity,
+                'Wastage moved to another product',
+                $wastage->notes,
+                $wastage->id
+            );
+
+            if (!$product->is_unlimited_stock && $product->quantity < $validated['quantity']) {
                 return back()->withErrors(['quantity' => 'Not enough quantity available']);
             }
-            $product->decrement('quantity', $validated['quantity']);
+            if (!$product->is_unlimited_stock) {
+                $product->decrement('quantity', $validated['quantity']);
+            }
+
+            $this->logStockMovement(
+                $product,
+                'decrease',
+                $validated['quantity'],
+                $validated['reason'],
+                $validated['notes'] ?? null,
+                $wastage->id
+            );
         }
 
         $wastage->update($validated);
@@ -103,9 +154,39 @@ class WastageController extends Controller
     public function destroy(Wastage $wastage)
     {
         $product = $wastage->product;
-        $product->increment('quantity', $wastage->quantity);
+        if (!$product->is_unlimited_stock) {
+            $product->increment('quantity', $wastage->quantity);
+        }
+
+        $this->logStockMovement(
+            $product,
+            'increase',
+            $wastage->quantity,
+            'Wastage deleted: ' . $wastage->reason,
+            $wastage->notes,
+            $wastage->id
+        );
         $wastage->delete();
 
         return redirect()->route('wastage.index')->with('success', 'Wastage deleted successfully');
+    }
+
+    private function logStockMovement(Product $product, string $changeType, int $quantity, ?string $reason, ?string $notes, int $wastageId): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        StockMovement::create([
+            'product_id' => $product->id,
+            'change_type' => $changeType,
+            'quantity' => $quantity,
+            'reason' => $reason,
+            'source' => 'wastage',
+            'reference_type' => 'wastage',
+            'reference_id' => $wastageId,
+            'user_id' => auth()->id(),
+            'notes' => $notes,
+        ]);
     }
 }

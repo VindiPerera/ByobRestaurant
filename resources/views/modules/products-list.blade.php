@@ -9,9 +9,17 @@
                 <h1 class="text-4xl font-bold text-gray-900">Products & Inventory</h1>
                 <p class="text-gray-600 mt-2">Manage products and inventory stock</p>
             </div>
-            <a href="{{ route('products.create') }}" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
-                <i class="fas fa-plus mr-2"></i>Add Product
-            </a>
+            <div class="flex flex-wrap gap-3">
+                <a href="{{ route('categories.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-tags mr-2"></i>Categories
+                </a>
+                <a href="{{ route('stock.adjustments.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-layer-group mr-2"></i>Stock Adjustments
+                </a>
+                <a href="{{ route('products.create') }}" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Add Product
+                </a>
+            </div>
         </div>
 
         @if(session('success'))
@@ -27,8 +35,10 @@
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Category</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Supplier</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Price</th>
-                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Quantity</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Stock</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                                 <th class="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
                             </tr>
@@ -37,11 +47,21 @@
                             @foreach($products as $product)
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $product->name }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">${{ number_format($product->price, 2) }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $product->category?->name ?? 'N/A' }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">
-                                        <span class="px-3 py-1 rounded-lg {{ $product->quantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800' }}">
-                                            {{ $product->quantity }}
-                                        </span>
+                                        {{ $product->supplierRecord?->name ?? ($product->getAttribute('supplier') ?? 'N/A') }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">
+                                        LKR {{ number_format($product->selling_price ?? $product->price, 2) }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">
+                                        @if($product->is_unlimited_stock)
+                                            <span class="px-3 py-1 rounded-lg bg-purple-100 text-purple-800">Unlimited</span>
+                                        @else
+                                            <span class="px-3 py-1 rounded-lg {{ $product->quantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800' }}">
+                                                {{ $product->quantity }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 text-sm">
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $product->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
