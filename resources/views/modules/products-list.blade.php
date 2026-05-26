@@ -34,6 +34,7 @@
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Image</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Category</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Supplier</th>
@@ -46,6 +47,22 @@
                         <tbody class="divide-y divide-gray-200">
                             @foreach($products as $product)
                                 <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 text-sm">
+                                        @if($product->image)
+                                            <div class="h-12 w-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 group cursor-pointer relative">
+                                                <img src="{{ asset('storage/' . $product->image) }}"
+                                                     alt="{{ $product->name }}"
+                                                     class="h-full w-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                                     onload="this.parentElement.classList.add('loaded')"
+                                                     title="{{ $product->name }}">
+                                                <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                                            </div>
+                                        @else
+                                            <div class="h-12 w-12 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 text-lg flex-shrink-0">
+                                                <i class="fas fa-image"></i>
+                                            </div>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $product->name }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $product->category?->name ?? 'N/A' }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">

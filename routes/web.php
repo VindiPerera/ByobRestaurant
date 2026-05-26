@@ -11,6 +11,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\WastageController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\EmployeeController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -38,11 +39,8 @@ Route::middleware('auth')->group(function () {
         return app(ProductController::class)->index();
     })->name('inventory.index');
 
-    // Placeholder for employees
-    Route::get('/employees', function () {
-        $modules = auth()->user()->role->modules()->get();
-        return view('modules.employees', ['modules' => $modules]);
-    })->name('employees.index');
+    // Employee CRUD routes
+    Route::resource('employees', EmployeeController::class);
 
     // Wastage CRUD routes
     Route::resource('wastages', WastageController::class);

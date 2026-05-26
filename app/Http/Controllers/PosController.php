@@ -72,6 +72,7 @@ class PosController extends Controller
                 'barcode' => $product->barcode,
                 'is_unlimited_stock' => $product->is_unlimited_stock,
                 'quantity' => $product->quantity,
+                'image' => $product->image,
             ];
         });
 
@@ -143,6 +144,7 @@ class PosController extends Controller
                     'subtotal' => (float) $item->subtotal,
                     'kitchen_notes' => $item->kitchen_notes,
                     'is_bar_item' => $item->is_bar_item,
+                    'image' => $item->product?->image,
                 ];
             }),
         ]);
@@ -160,16 +162,27 @@ class PosController extends Controller
         $product = Product::find($validated['product_id']);
         $price = $product->selling_price ?? $product->price;
 
-        $item = OrderItem::create([
-            'order_id' => $order->id,
-            'product_id' => $product->id,
-            'product_name' => $product->name,
-            'unit_price' => $price,
-            'quantity' => $validated['quantity'],
-            'subtotal' => $price * $validated['quantity'],
-            'kitchen_notes' => $validated['kitchen_notes'] ?? null,
-            'is_bar_item' => $validated['is_bar_item'] ?? false,
-        ]);
+        $existingItem = OrderItem::where('order_id', $order->id)
+            ->where('product_id', $product->id)
+            ->first();
+
+        if ($existingItem) {
+            $existingItem->quantity += $validated['quantity'];
+            $existingItem->subtotal = $existingItem->unit_price * $existingItem->quantity;
+            $existingItem->save();
+            $item = $existingItem;
+        } else {
+            $item = OrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'unit_price' => $price,
+                'quantity' => $validated['quantity'],
+                'subtotal' => $price * $validated['quantity'],
+                'kitchen_notes' => $validated['kitchen_notes'] ?? null,
+                'is_bar_item' => $validated['is_bar_item'] ?? false,
+            ]);
+        }
 
         $this->updateOrderTotals($order);
 

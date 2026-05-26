@@ -8,10 +8,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
-        body { background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+        body { background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 
         /* ── Layout ── */
-        .pos-grid { display: grid; grid-template-columns: 320px 1fr 440px; height: 100vh; }
+        .pos-grid { display: grid; grid-template-columns: 320px 1fr 520px; flex: 1; min-height: 0; }
 
         /* ── Panels ── */
         .tables-panel  { background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
@@ -159,10 +159,12 @@
 </head>
 <body>
 
+@include('layouts.navbar')
+
 <!-- Hidden print area -->
 <div id="printArea"></div>
 
-<div class="pos-grid">
+<div class="pos-grid" style="margin-top: 64px; height: calc(100vh - 64px);">
 
     <!-- ════════════════════════════════════════
          COLUMN 1 — TABLES PANEL
@@ -192,8 +194,8 @@
         </div>
 
         <!-- Tables list -->
-        <div style="flex:1; overflow-y:auto; padding:12px;" id="tablesContainer">
-            <p style="text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">Loading tables…</p>
+        <div style="flex:1; overflow-y:auto; padding:12px; display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start;" id="tablesContainer">
+            <p style="grid-column:1/-1; text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">Loading tables…</p>
         </div>
 
     </div>
@@ -249,134 +251,140 @@
     ════════════════════════════════════════ -->
     <div class="bill-panel">
 
-        <!-- Zone 1: Header -->
-        <div style="padding:16px; border-bottom:1px solid #e2e8f0; flex-shrink:0; background:#fff;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin:0;">
+        <!-- Zone 1: Header with Table Info -->
+        <div style="padding:12px 16px; border-bottom:1px solid #e2e8f0; flex-shrink:0; background:#fff;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <h3 style="font-size:14px; font-weight:800; color:#0f172a; margin:0;">
                     <i class="fas fa-receipt" style="color:#dc2626; margin-right:6px;"></i>Order
                 </h3>
-                <button onclick="loadHeldOrders()" style="font-size:11px; background:#fef3c7; color:#92400e; border:none; padding:5px 10px; border-radius:8px; cursor:pointer; font-weight:700;">
-                    <i class="fas fa-pause-circle" style="margin-right:3px;"></i>Held <span id="heldCount" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;">0</span>
+                <button onclick="loadHeldOrders()" style="font-size:10px; background:#fef3c7; color:#92400e; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700;">
+                    <i class="fas fa-pause-circle" style="margin-right:2px;"></i>Held <span id="heldCount" style="background:#f59e0b;color:#fff;border-radius:8px;padding:0px 5px; font-size:9px;">0</span>
                 </button>
             </div>
-            <div id="selectedTableLabel" style="font-size:13px; font-weight:700; color:#64748b;">
-                <i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin
+            <div id="selectedTableLabel" style="font-size:12px; font-weight:700; color:#64748b;">
+                <i class="fas fa-arrow-left" style="font-size:10px; margin-right:4px;"></i>Select a table to begin
             </div>
         </div>
 
-        <!-- Zone 2: Customer info (hidden until table active) -->
-        <div id="customerInfoSection" style="display:none; background:#eff6ff; border-bottom:1px solid #bfdbfe; padding:12px 16px; flex-shrink:0;">
-            <div style="font-size:10px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
-                <i class="fas fa-user-circle" style="margin-right:4px;"></i>Customer Info <span style="font-weight:400; color:#64748b;">(optional)</span>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                <input type="text" id="customerName" placeholder="Customer name"
-                       style="font-size:12px; border:1.5px solid #bfdbfe; border-radius:8px; padding:7px 10px; background:#fff; outline:none; width:100%;"
-                       onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#bfdbfe'; saveCustomerInfo()">
-                <input type="text" id="customerPhone" placeholder="Phone number"
-                       style="font-size:12px; border:1.5px solid #bfdbfe; border-radius:8px; padding:7px 10px; background:#fff; outline:none; width:100%;"
-                       onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#bfdbfe'; saveCustomerInfo()">
+        <!-- Zone 2: Expandable Customer Info -->
+        <div style="padding:0; border-bottom:1px solid #e2e8f0; flex-shrink:0; background:#f8fafc;">
+            <button id="customerInfoToggle" onclick="toggleCustomerInfo()" style="width:100%; padding:10px 16px; background:none; border:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; text-align:left;">
+                <div style="display:flex; align-items:center;">
+                    <i class="fas fa-user-circle" style="color:#1d4ed8; margin-right:6px; font-size:13px;"></i>
+                    <span style="font-size:11px; font-weight:700; color:#1d4ed8; text-transform:uppercase;">Customer</span>
+                </div>
+                <i class="fas fa-chevron-down" id="customerInfoChevron" style="font-size:11px; color:#64748b;"></i>
+            </button>
+            <div id="customerInfoSection" style="display:none; padding:8px 16px; border-top:1px solid #e2e8f0;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                    <input type="text" id="customerName" placeholder="Name"
+                           style="font-size:11px; border:1.5px solid #bfdbfe; border-radius:6px; padding:6px 8px; background:#fff; outline:none; width:100%;"
+                           onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#bfdbfe'; saveCustomerInfo()">
+                    <input type="text" id="customerPhone" placeholder="Phone"
+                           style="font-size:11px; border:1.5px solid #bfdbfe; border-radius:6px; padding:6px 8px; background:#fff; outline:none; width:100%;"
+                           onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#bfdbfe'; saveCustomerInfo()">
+                </div>
             </div>
         </div>
 
-        <!-- Zone 3: Order items (scrollable) -->
-        <div style="flex:1; overflow-y:auto; padding:12px 16px;" id="billItemsWrapper">
+        <!-- Zone 3: Order items (scrollable) - MAIN AREA -->
+        <div style="flex:1; overflow-y:auto; padding:12px 16px; background:#fafafa;" id="billItemsWrapper">
             <div id="billItems">
                 <div style="text-align:center; padding:48px 0; color:#cbd5e1;">
                     <i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i>
-                    <p style="font-size:13px; margin:0;">Select a table, then add items</p>
+                    <p style="font-size:12px; margin:0;">Select a table, then add items</p>
                 </div>
             </div>
         </div>
 
         <!-- Zone 4: Fixed bottom controls -->
-        <div style="border-top:1px solid #e2e8f0; padding:14px 16px; background:#fff; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+        <div style="border-top:1px solid #e2e8f0; padding:12px 16px; background:#fff; flex-shrink:0; display:flex; flex-direction:column; gap:8px;">
 
             <!-- Totals -->
-            <div style="font-size:13px; display:flex; flex-direction:column; gap:5px;">
-                <div style="display:flex; justify-content:space-between; color:#64748b;">
+            <div style="font-size:12px; display:flex; flex-direction:column; gap:4px;">
+                <div style="display:flex; justify-content:space-between; color:#64748b; font-size:11px;">
                     <span>Subtotal</span>
                     <span id="subtotalDisplay" style="font-weight:600; color:#374151;">Rs. 0.00</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
                     <span style="color:#64748b;">Discount</span>
-                    <div style="display:flex; gap:6px;">
+                    <div style="display:flex; gap:4px;">
                         <select id="discountType" onchange="recalcTotal()"
-                                style="font-size:11px; border:1.5px solid #e2e8f0; border-radius:7px; padding:4px 8px; background:#f8fafc; outline:none; cursor:pointer;">
+                                style="font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 6px; background:#f8fafc; outline:none; cursor:pointer;">
                             <option value="">None</option>
                             <option value="percentage">%</option>
-                            <option value="fixed">Fixed</option>
+                            <option value="fixed">Rs</option>
                         </select>
                         <input type="number" id="discountValue" placeholder="0" min="0" oninput="recalcTotal()"
-                               style="width:64px; font-size:11px; border:1.5px solid #e2e8f0; border-radius:7px; padding:4px 8px; outline:none; background:#f8fafc;">
+                               style="width:50px; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 6px; outline:none; background:#f8fafc;">
                     </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding-top:6px; border-top:2px solid #f1f5f9; font-weight:800; font-size:16px; color:#dc2626;">
+                <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:2px solid #f1f5f9; font-weight:700; font-size:14px; color:#dc2626;">
                     <span>Total</span>
                     <span id="totalDisplay">Rs. 0.00</span>
                 </div>
             </div>
 
             <!-- Payment method (hidden until items exist) -->
-            <div id="paymentSection" style="display:none;">
-                <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:8px;">Payment Method</div>
-                <div style="display:flex; gap:7px;">
-                    <button class="pay-method-btn active" data-method="cash" onclick="selectPaymentMethod('cash')">
-                        <i class="fas fa-money-bill-wave" style="display:block; font-size:16px; margin-bottom:3px;"></i>Cash
+            <div id="paymentSection" style="display:none; padding:8px 0; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
+                <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:6px;">Method</div>
+                <div style="display:flex; gap:5px; margin-bottom:8px;">
+                    <button class="pay-method-btn active" data-method="cash" onclick="selectPaymentMethod('cash')" style="flex:1; padding:6px 4px; font-size:10px;">
+                        <i class="fas fa-money-bill-wave" style="display:block; font-size:13px; margin-bottom:2px;"></i>Cash
                     </button>
-                    <button class="pay-method-btn" data-method="card" onclick="selectPaymentMethod('card')">
-                        <i class="fas fa-credit-card" style="display:block; font-size:16px; margin-bottom:3px;"></i>Card
+                    <button class="pay-method-btn" data-method="card" onclick="selectPaymentMethod('card')" style="flex:1; padding:6px 4px; font-size:10px;">
+                        <i class="fas fa-credit-card" style="display:block; font-size:13px; margin-bottom:2px;"></i>Card
                     </button>
-                    <button class="pay-method-btn" data-method="bank_transfer" onclick="selectPaymentMethod('bank_transfer')">
-                        <i class="fas fa-university" style="display:block; font-size:16px; margin-bottom:3px;"></i>Bank
+                    <button class="pay-method-btn" data-method="bank_transfer" onclick="selectPaymentMethod('bank_transfer')" style="flex:1; padding:6px 4px; font-size:10px;">
+                        <i class="fas fa-university" style="display:block; font-size:13px; margin-bottom:2px;"></i>Bank
                     </button>
                 </div>
                 <!-- Cash amount input -->
-                <div id="cashSection" style="display:flex; gap:8px; margin-top:8px;">
+                <div id="cashSection" style="display:flex; gap:6px;">
                     <div style="flex:1;">
-                        <label style="font-size:10px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Amount Paid (Rs.)</label>
+                        <label style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Paid</label>
                         <input type="number" id="amountPaid" placeholder="0.00" min="0" oninput="updateChange()"
-                               style="width:100%; font-size:13px; font-weight:700; border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 10px; outline:none;"
+                               style="width:100%; font-size:11px; font-weight:700; border:1px solid #e2e8f0; border-radius:5px; padding:5px 6px; outline:none;"
                                onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:10px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Change</label>
-                        <div id="changeDisplay" style="font-size:14px; font-weight:800; color:#16a34a; padding:8px 10px; background:#f0fdf4; border-radius:8px; border:1.5px solid #bbf7d0;">Rs. 0.00</div>
+                        <label style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Change</label>
+                        <div id="changeDisplay" style="font-size:12px; font-weight:700; color:#16a34a; padding:5px 6px; background:#f0fdf4; border-radius:5px; border:1px solid #bbf7d0; text-align:center;">Rs. 0.00</div>
                     </div>
                 </div>
             </div>
 
             <!-- Action buttons -->
-            <div id="orderControls" style="display:flex; flex-direction:column; gap:7px;">
+            <div id="orderControls" style="display:flex; flex-direction:column; gap:6px;">
 
                 <!-- Row 1: Live Bill + KOT -->
-                <div style="display:flex; gap:7px;">
-                    <button onclick="toggleLiveBill()" id="liveBillBtn" class="btn-purple" style="flex:1;">
-                        <i class="fas fa-circle" id="liveBillIcon" style="font-size:9px; margin-right:5px; color:rgba(255,255,255,0.5);"></i>Live Bill
+                <div style="display:flex; gap:6px;">
+                    <button onclick="toggleLiveBill()" id="liveBillBtn" class="btn-purple" style="flex:1; padding:8px 6px; font-size:11px;">
+                        <i class="fas fa-circle" id="liveBillIcon" style="font-size:8px; margin-right:4px; color:rgba(255,255,255,0.5);"></i>Live Bill
                     </button>
-                    <button onclick="printKot()" class="btn-orange" style="flex:1;">
-                        <i class="fas fa-receipt" style="margin-right:4px;"></i>Print KOT
+                    <button onclick="printKot()" class="btn-orange" style="flex:1; padding:8px 6px; font-size:11px;">
+                        <i class="fas fa-receipt" style="margin-right:3px;"></i>KOT
                     </button>
                 </div>
 
-                <!-- Row 2: Waiter Bill (hidden until items exist) -->
-                <button onclick="printWaiterBill()" id="waiterBillBtn" class="btn-blue" style="display:none; width:100%;">
-                    <i class="fas fa-file-invoice" style="margin-right:4px;"></i>Generate Waiter Bill
-                </button>
+                <!-- Row 2: Waiter Bill + Pay (side by side) -->
+                <div id="waiterPayRow" style="display:none; gap:6px; display:flex;">
+                    <button onclick="printWaiterBill()" id="waiterBillBtn" class="btn-blue" style="flex:1; padding:8px 6px; font-size:11px;">
+                        <i class="fas fa-file-invoice" style="margin-right:3px;"></i>Bill
+                    </button>
+                    <button onclick="initiatePayment()" id="payBtn" class="btn-green" style="flex:1; padding:8px 6px; font-size:11px;">
+                        <i class="fas fa-check-circle" style="margin-right:3px;"></i>Pay
+                    </button>
+                </div>
 
                 <!-- Row 3: Confirm Live Bill (shown in live bill mode with items) -->
-                <button onclick="confirmLiveBill()" id="confirmLiveBillBtn" class="btn-primary" style="display:none; width:100%;">
-                    <i class="fas fa-bolt" style="margin-right:4px;"></i>Confirm &amp; Print Live Bill
+                <button onclick="confirmLiveBill()" id="confirmLiveBillBtn" class="btn-primary" style="display:none; width:100%; padding:8px; font-size:11px;">
+                    <i class="fas fa-bolt" style="margin-right:3px;"></i>Confirm &amp; Print
                 </button>
 
-                <!-- Row 4: Pay & Close (hidden until items exist) -->
-                <button onclick="initiatePayment()" id="payBtn" class="btn-green" style="display:none; width:100%; font-size:14px; padding:12px;">
-                    <i class="fas fa-check-circle" style="margin-right:4px;"></i>Pay &amp; Close Table
-                </button>
-
-                <!-- Row 5: Hold -->
-                <button onclick="holdCurrentOrder()" id="holdBtn" class="btn-secondary" style="display:none; width:100%;">
-                    <i class="fas fa-pause" style="margin-right:4px;"></i>Hold Order
+                <!-- Row 4: Hold -->
+                <button onclick="holdCurrentOrder()" id="holdBtn" class="btn-secondary" style="display:none; width:100%; padding:8px; font-size:11px;">
+                    <i class="fas fa-pause" style="margin-right:3px;"></i>Hold Order
                 </button>
 
             </div>
@@ -539,18 +547,15 @@
             let actionBar = '';
             if (isOccupied && table.has_order) {
                 actionBar = '<div class="table-card-actions">'
-                    + '<button onclick="viewTableOrder(' + table.order_id + '); event.stopPropagation();" '
-                    + 'style="flex:1; font-size:11px; font-weight:700; background:#2563eb; color:#fff; border:none; border-radius:7px; padding:6px 4px; cursor:pointer;">'
-                    + '<i class="fas fa-eye" style="margin-right:3px;"></i>View Order</button>'
                     + '<button onclick="printKotForTable(' + table.order_id + '); event.stopPropagation();" '
                     + 'style="flex:1; font-size:11px; font-weight:700; background:#ea580c; color:#fff; border:none; border-radius:7px; padding:6px 4px; cursor:pointer;">'
                     + '<i class="fas fa-print" style="margin-right:3px;"></i>KOT</button>'
                     + '</div>';
             }
 
-            const clickFn = isOccupied
-                ? 'expandTableCard(' + table.id + ', event)'
-                : 'startNewOrder(' + table.id + ')';
+            const clickFn = isOccupied && table.has_order
+                ? 'viewTableOrder(' + table.order_id + ')'
+                : (isOccupied ? 'expandTableCard(' + table.id + ', event)' : 'startNewOrder(' + table.id + ')');
 
             const vipBadge = table.section === 'vip'
                 ? '<div style="position:absolute; top:6px; left:6px; font-size:9px; font-weight:800; background:#7c3aed; color:#fff; padding:2px 6px; border-radius:6px;">VIP</div>'
@@ -664,9 +669,18 @@
             return;
         }
         container.innerHTML = allProducts.map(function(p) {
+            let imageHtml = '';
+            if (p.image) {
+                imageHtml = '<img src="/storage/' + p.image + '" alt="' + escapeHtml(p.name) + '" '
+                    + 'style="width:100%; height:100%; object-fit:cover;">';
+            } else {
+                imageHtml = '<i class="fas fa-utensils" style="color:#dc2626; font-size:18px;"></i>';
+            }
+
             return '<div class="product-card" onclick="addProductToOrder(' + p.id + ', \'' + escapeJs(p.name) + '\', ' + p.price + ')">'
-                + '<div style="height:52px; background:linear-gradient(135deg,#fef2f2,#fee2e2); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">'
-                + '<i class="fas fa-utensils" style="color:#dc2626; font-size:18px;"></i></div>'
+                + '<div style="height:80px; background:linear-gradient(135deg,#fef2f2,#fee2e2); border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; overflow:hidden; position:relative;">'
+                + imageHtml
+                + '</div>'
                 + '<p style="font-size:12px; font-weight:700; color:#0f172a; margin:0 0 4px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">' + escapeHtml(p.name) + '</p>'
                 + '<p style="font-size:14px; font-weight:900; color:#dc2626; margin:0;">Rs. ' + p.price.toFixed(2) + '</p>'
                 + '</div>';
@@ -769,14 +783,14 @@
         if (!currentTable) {
             document.getElementById('selectedTableLabel').innerHTML =
                 '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin';
-            document.getElementById('customerInfoSection').style.display = 'none';
+            document.getElementById('customerInfoToggle').style.display = 'none';
             document.getElementById('activeOrderBanner').style.display   = 'none';
             return;
         }
         const sectionLabel = currentTable.section === 'vip' ? '🟣 VIP' : '🍽';
         document.getElementById('selectedTableLabel').innerHTML =
             sectionLabel + ' <strong>Table ' + currentTable.table_number + '</strong> — ' + escapeHtml(currentTable.name);
-        document.getElementById('customerInfoSection').style.display = 'block';
+        document.getElementById('customerInfoToggle').style.display = 'flex';
         document.getElementById('activeOrderBanner').style.display   = 'flex';
         document.getElementById('activeOrderText').textContent = 'Adding to Table ' + currentTable.table_number;
 
@@ -813,7 +827,16 @@
                     ? '<button class="qty-btn" onclick="increaseQty(' + item.id + ')">+</button>'
                     : '<button class="qty-btn" style="opacity:0.4;" disabled>+</button>';
 
-                return '<div class="bill-item">'
+                let thumbHtml = '';
+                if (item.image) {
+                    thumbHtml = '<div style="width:48px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#f1f5f9; margin-right:10px;">'
+                        + '<img src="/storage/' + item.image + '" alt="' + escapeHtml(item.product_name) + '" '
+                        + 'style="width:100%; height:100%; object-fit:cover;">'
+                        + '</div>';
+                }
+
+                return '<div class="bill-item" style="align-items:flex-start;">'
+                    + thumbHtml
                     + '<div style="flex:1; min-width:0;">'
                     + '<p style="font-size:13px; font-weight:700; color:#0f172a; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(item.product_name) + '</p>'
                     + '<p style="font-size:11px; color:#94a3b8; margin:2px 0 0;">Rs. ' + item.unit_price.toFixed(2) + ' each</p>'
@@ -849,10 +872,20 @@
     function setBottomControls(hasItems) {
         const liveBillOn = currentOrder && currentOrder.live_bill_enabled;
         document.getElementById('paymentSection').style.display     = hasItems ? 'block' : 'none';
-        document.getElementById('waiterBillBtn').style.display      = hasItems ? 'block' : 'none';
-        document.getElementById('payBtn').style.display             = hasItems ? 'block' : 'none';
+        document.getElementById('waiterPayRow').style.display       = hasItems ? 'flex' : 'none';
         document.getElementById('holdBtn').style.display            = hasItems ? 'block' : 'none';
         document.getElementById('confirmLiveBillBtn').style.display = (hasItems && liveBillOn) ? 'block' : 'none';
+    }
+
+    function toggleCustomerInfo() {
+        const section = document.getElementById('customerInfoSection');
+        const toggle = document.getElementById('customerInfoToggle');
+        const chevron = document.getElementById('customerInfoChevron');
+        const isOpen = section.style.display !== 'none';
+
+        section.style.display = isOpen ? 'none' : 'block';
+        toggle.style.background = isOpen ? 'none' : '#f0fdf4';
+        chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
     }
 
     function updateLiveBillButton() {
@@ -973,22 +1006,22 @@
         }).join('');
 
         const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
-            + '<div style="font-weight:900; font-size:15px; letter-spacing:1px;">RESTAURANT BYOB</div>'
-            + '<div style="font-size:11px; margin-top:3px;">Order: ' + d.order_number + '</div>'
-            + '<div style="font-size:12px; font-weight:700;">Table ' + d.table_number + (d.table_name ? ' — ' + escapeHtml(d.table_name) : '') + '</div>'
-            + (d.customer_name  ? '<div style="font-size:11px;">Customer: ' + escapeHtml(d.customer_name) + '</div>' : '')
-            + (d.customer_phone ? '<div style="font-size:11px;">Phone: ' + d.customer_phone + '</div>' : '')
-            + '<div style="font-size:10px; color:#666;">' + new Date().toLocaleString() + '</div></div>'
+            + '<div style="font-weight:900; font-size:15px; letter-spacing:1px; color:#000;">RESTAURANT BYOB</div>'
+            + '<div style="font-size:11px; margin-top:3px; color:#000;">Order: ' + d.order_number + '</div>'
+            + '<div style="font-size:12px; font-weight:700; color:#000;">Table ' + d.table_number + (d.table_name ? ' — ' + escapeHtml(d.table_name) : '') + '</div>'
+            + (d.customer_name  ? '<div style="font-size:11px; color:#000;">Customer: ' + escapeHtml(d.customer_name) + '</div>' : '')
+            + (d.customer_phone ? '<div style="font-size:11px; color:#000;">Phone: ' + d.customer_phone + '</div>' : '')
+            + '<div style="font-size:10px; color:#000;">' + new Date().toLocaleString() + '</div></div>'
             + itemRows
             + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
-            + '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span>Subtotal</span><span>Rs. ' + d.subtotal.toFixed(2) + '</span></div>'
-            + (d.discount_amount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span>Discount</span><span>-Rs. ' + d.discount_amount.toFixed(2) + '</span></div>' : '')
-            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px;"><span>Total</span><span>Rs. ' + d.total.toFixed(2) + '</span></div>'
-            + '<div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px; color:#555;"><span>Paid (' + (methodLabel[d.payment_method] || d.payment_method) + ')</span><span>Rs. ' + d.amount_paid.toFixed(2) + '</span></div>'
-            + (d.change_amount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Change</span><span>Rs. ' + d.change_amount.toFixed(2) + '</span></div>' : '')
+            + '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px; color:#000;"><span>Subtotal</span><span>Rs. ' + d.subtotal.toFixed(2) + '</span></div>'
+            + (d.discount_amount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px; color:#000;"><span>Discount</span><span>-Rs. ' + d.discount_amount.toFixed(2) + '</span></div>' : '')
+            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; color:#000;"><span>Total</span><span>Rs. ' + d.total.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px; color:#000;"><span>Paid (' + (methodLabel[d.payment_method] || d.payment_method) + ')</span><span>Rs. ' + d.amount_paid.toFixed(2) + '</span></div>'
+            + (d.change_amount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px; color:#000;"><span>Change</span><span>Rs. ' + d.change_amount.toFixed(2) + '</span></div>' : '')
             + '</div>'
             + '<div style="text-align:center; margin-top:14px; border:2px solid #16a34a; border-radius:6px; padding:7px; font-weight:900; font-size:15px; color:#16a34a; letter-spacing:2px;">✓ PAID ✓</div>'
-            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#888;">Thank you for dining with us!</div>';
+            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#000;">Thank you for dining with us!</div>';
 
         currentBillContent = html;
         document.getElementById('billContent').innerHTML = html;
@@ -1021,20 +1054,19 @@
         }).join('');
 
         const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
-            + '<div style="font-weight:900; font-size:15px;">RESTAURANT BYOB</div>'
+            + '<div style="font-weight:900; font-size:15px; color:#000;">RESTAURANT BYOB</div>'
             + '<div style="font-size:14px; font-weight:800; margin:4px 0;">— WAITER BILL —</div>'
             + '<div style="font-size:13px; font-weight:700; background:#000; color:#fff; padding:3px 12px; display:inline-block; border-radius:4px; margin:4px 0;">Table ' + data.table_number + '</div>'
-            + '<div style="font-size:11px; margin-top:4px;">Order: ' + data.order_number + '</div>'
-            + (data.customer_name  ? '<div style="font-size:11px;">Customer: ' + escapeHtml(data.customer_name) + '</div>' : '')
-            + (data.customer_phone ? '<div style="font-size:11px;">Phone: ' + data.customer_phone + '</div>' : '')
-            + '<div style="font-size:10px; color:#666;">' + new Date().toLocaleString() + '</div></div>'
+            + '<div style="font-size:11px; margin-top:4px; color:#000;">Order: ' + data.order_number + '</div>'
+            + (data.customer_name  ? '<div style="font-size:11px; color:#000;">Customer: ' + escapeHtml(data.customer_name) + '</div>' : '')
+            + (data.customer_phone ? '<div style="font-size:11px; color:#000;">Phone: ' + data.customer_phone + '</div>' : '')
+            + '<div style="font-size:10px; color:#000;">' + new Date().toLocaleString() + '</div></div>'
             + itemRows
             + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
-            + '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Subtotal</span><span>Rs. ' + data.subtotal.toFixed(2) + '</span></div>'
-            + '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Tax (10%)</span><span>Rs. ' + data.tax_amount.toFixed(2) + '</span></div>'
-            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px;"><span>Total</span><span>Rs. ' + data.total.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px; color:#000;"><span>Subtotal</span><span>Rs. ' + data.subtotal.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; color:#000;"><span>Total</span><span>Rs. ' + data.total.toFixed(2) + '</span></div>'
             + '</div>'
-            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#888; border-top:1px dashed #ccc; padding-top:8px;">This is not a payment receipt</div>';
+            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#000; border-top:1px dashed #ccc; padding-top:8px;">This is not a payment receipt</div>';
 
         printReceipt(html);
         toast('Waiter bill printed', 'success');
@@ -1076,18 +1108,18 @@
         }).join('');
 
         const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
-            + '<div style="font-weight:900; font-size:15px;">RESTAURANT BYOB</div>'
-            + '<div style="font-size:13px; font-weight:800;">⚡ LIVE BILL</div>'
-            + '<div style="font-size:13px; font-weight:700; margin:4px 0;">Table ' + (currentTable ? currentTable.table_number : '—') + '</div>'
-            + (currentOrder.customer_name ? '<div style="font-size:11px;">Customer: ' + escapeHtml(currentOrder.customer_name) + '</div>' : '')
-            + '<div style="font-size:10px; color:#666;">' + new Date().toLocaleString() + '</div></div>'
+            + '<div style="font-weight:900; font-size:15px; color:#000;">RESTAURANT BYOB</div>'
+            + '<div style="font-size:13px; font-weight:800; color:#000;">⚡ LIVE BILL</div>'
+            + '<div style="font-size:13px; font-weight:700; margin:4px 0; color:#000;">Table ' + (currentTable ? currentTable.table_number : '—') + '</div>'
+            + (currentOrder.customer_name ? '<div style="font-size:11px; color:#000;">Customer: ' + escapeHtml(currentOrder.customer_name) + '</div>' : '')
+            + '<div style="font-size:10px; color:#000;">' + new Date().toLocaleString() + '</div></div>'
             + itemRows
             + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
-            + '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Subtotal</span><span>Rs. ' + subtotal.toFixed(2) + '</span></div>'
-            + (discount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Discount</span><span>-Rs. ' + discount.toFixed(2) + '</span></div>' : '')
-            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px;"><span>Total</span><span>Rs. ' + total.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px; color:#000;"><span>Subtotal</span><span>Rs. ' + subtotal.toFixed(2) + '</span></div>'
+            + (discount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px; color:#000;"><span>Discount</span><span>-Rs. ' + discount.toFixed(2) + '</span></div>' : '')
+            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; color:#000;"><span>Total</span><span>Rs. ' + total.toFixed(2) + '</span></div>'
             + '</div>'
-            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#888;">Live bill — subject to change</div>';
+            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#000;">Live bill — subject to change</div>';
 
         printReceipt(html);
         document.getElementById('liveBillPrompt').classList.add('open');
@@ -1146,17 +1178,17 @@
     }
 
     function buildKotHtml(data, tableNum) {
-        return '<div style="text-align:center; font-weight:900; font-size:16px; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:10px;">KITCHEN ORDER</div>'
-            + '<div style="font-size:13px; font-weight:800;">Order: ' + data.order_number + '</div>'
-            + '<div style="font-size:14px; font-weight:900; margin:4px 0;">Table ' + tableNum + '</div>'
-            + '<div style="font-size:10px; color:#666; margin-bottom:10px;">' + new Date().toLocaleString() + '</div>'
+        return '<div style="text-align:center; font-weight:900; font-size:16px; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:10px; color:#000;">KITCHEN ORDER</div>'
+            + '<div style="font-size:13px; font-weight:800; color:#000;">Order: ' + data.order_number + '</div>'
+            + '<div style="font-size:14px; font-weight:900; margin:4px 0; color:#000;">Table ' + tableNum + '</div>'
+            + '<div style="font-size:10px; color:#000; margin-bottom:10px;">' + new Date().toLocaleString() + '</div>'
             + '<div style="border-top:1px solid #000; padding-top:10px;">'
             + data.items.map(function(i) {
-                return '<div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin:8px 0; border-bottom:1px dashed #ccc; padding-bottom:6px;">'
+                return '<div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin:8px 0; border-bottom:1px dashed #000; padding-bottom:6px; color:#000;">'
                     + '<span>' + escapeHtml(i.product_name) + '</span>'
                     + '<span style="font-size:16px; font-weight:900;">×' + i.quantity + '</span>'
                     + '</div>'
-                    + (i.kitchen_notes ? '<div style="font-size:11px; color:#555; margin-top:-4px; margin-bottom:6px;">Note: ' + escapeHtml(i.kitchen_notes) + '</div>' : '');
+                    + (i.kitchen_notes ? '<div style="font-size:11px; color:#000; margin-top:-4px; margin-bottom:6px;">Note: ' + escapeHtml(i.kitchen_notes) + '</div>' : '');
             }).join('')
             + '</div>';
     }
@@ -1235,11 +1267,11 @@
 
         document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table, then add items</p></div>';
         document.getElementById('selectedTableLabel').innerHTML = '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin';
+        document.getElementById('customerInfoToggle').style.display     = 'none';
         document.getElementById('customerInfoSection').style.display    = 'none';
         document.getElementById('activeOrderBanner').style.display      = 'none';
         document.getElementById('paymentSection').style.display         = 'none';
-        document.getElementById('waiterBillBtn').style.display          = 'none';
-        document.getElementById('payBtn').style.display                 = 'none';
+        document.getElementById('waiterPayRow').style.display           = 'none';
         document.getElementById('holdBtn').style.display                = 'none';
         document.getElementById('confirmLiveBillBtn').style.display     = 'none';
         document.getElementById('customerName').value   = '';
