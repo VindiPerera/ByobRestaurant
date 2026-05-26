@@ -215,8 +215,6 @@ class PosController extends Controller
     public function completeOrder(Request $request, Order $order)
     {
         $validated = $request->validate([
-            'payment_method' => 'required|in:cash,card,bank_transfer,mixed',
-            'amount_paid' => 'required|numeric|min:0',
             'discount_type' => 'nullable|in:percentage,fixed',
             'discount_value' => 'nullable|numeric|min:0',
         ]);
@@ -230,34 +228,33 @@ class PosController extends Controller
             $discount = $validated['discount_value'];
         }
 
-        $tax = ($subtotal - $discount) * 0.10;
-        $total = $subtotal - $discount + $tax;
-        $change = $validated['amount_paid'] - $total;
+        $total = $subtotal - $discount;
 
         $order->update([
             'status' => 'completed',
             'subtotal' => $subtotal,
             'discount_amount' => $discount,
-            'tax_amount' => $tax,
+            'tax_amount' => 0,
             'total' => $total,
-            'payment_method' => $validated['payment_method'],
-            'amount_paid' => $validated['amount_paid'],
-            'change_amount' => $change,
             'printed_at' => now(),
         ]);
 
-        if ($order->table_id) {
-            RestaurantTable::find($order->table_id)->update([
-                'status' => 'available',
-                'occupied_at' => null,
-            ]);
-        }
-
         return response()->json([
             'success' => true,
+            'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'subtotal' => (float) $subtotal,
+            'discount_amount' => (float) $discount,
             'total' => (float) $total,
-            'change' => (float) $change,
-            'message' => 'Order completed',
+            'items' => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
+                'kitchen_notes' => $item->kitchen_notes,
+            ]),
         ]);
     }
 
@@ -311,8 +308,8 @@ class PosController extends Controller
         $subtotal = $order->items->sum('subtotal');
         $order->update([
             'subtotal' => $subtotal,
-            'tax_amount' => $subtotal * 0.10,
-            'total' => $subtotal + ($subtotal * 0.10),
+            'tax_amount' => 0,
+            'total' => $subtotal,
         ]);
     }
 

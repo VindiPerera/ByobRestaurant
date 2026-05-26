@@ -13,13 +13,14 @@
         .tables-panel { background: white; border-right: 1px solid #e5e7eb; overflow-y: auto; }
         .menu-panel { background: white; overflow-y: auto; }
         .bill-panel { background: #fafafa; border-left: 1px solid #e5e7eb; overflow-y: auto; display: flex; flex-direction: column; }
-        .table-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+        .table-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; position: relative; }
         .table-card:hover { border-color: #dc2626; transform: translateY(-2px); }
         .table-card.active { border-color: #dc2626; background: #fef2f2; }
         .table-card.available { background: #f0fdf4; border: 2px solid #22c55e; }
         .table-card.occupied { background: #fef2f2; border: 2px solid #dc2626; }
         .table-card.reserved { background: #fef3c7; border: 2px solid #f59e0b; }
         .table-card.cleaning { background: #f3f4f6; border: 2px solid #6b7280; }
+        .table-kot-btn { position: absolute; top: 4px; right: 4px; padding: 4px 8px; font-size: 10px; background: #f97316; color: white; border: none; border-radius: 4px; cursor: pointer; }
         .category-pill { @apply px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition-all; border: 2px solid #e5e7eb; }
         .category-pill.active { @apply bg-red-600 text-white border-red-600; }
         .product-card { @apply p-4 border border-gray-200 rounded-lg cursor-pointer transition-all hover:shadow-md hover:border-red-600; }
@@ -29,14 +30,8 @@
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
         .modal.open { display: flex; }
         .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
-        .receipt { font-family: 'Courier New', monospace; width: 80mm; margin: 0 auto; padding: 10px; }
-        @media print {
-            body * { display: none; }
-            .receipt { display: block; width: 80mm; margin: 0; padding: 0; background: white; }
-            .receipt * { display: block; }
-        }
-        .live-bill-indicator { animation: pulse 1s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .bill-style { font-family: 'Courier New', monospace; padding: 15px; background: white; }
+        @media print { body * { display: none; } .bill-style { display: block; width: 80mm; margin: 0; padding: 10px; background: white; } .bill-style * { display: block; } }
     </style>
 </head>
 <body>
@@ -45,7 +40,7 @@
         <div class="tables-panel">
             <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
                 <h2 class="font-bold text-lg text-gray-900 mb-4">Tables</h2>
-                <div class="flex gap-2 mb-4">
+                <div class="flex gap-2">
                     <button onclick="filterTables('all')" class="filter-btn active text-xs font-medium px-3 py-1 rounded border border-gray-300 cursor-pointer" data-filter="all">All</button>
                     <button onclick="filterTables('main')" class="filter-btn text-xs font-medium px-3 py-1 rounded border border-gray-300 cursor-pointer" data-filter="main">Main</button>
                     <button onclick="filterTables('vip')" class="filter-btn text-xs font-medium px-3 py-1 rounded border border-gray-300 cursor-pointer" data-filter="vip">VIP</button>
@@ -87,27 +82,15 @@
         <!-- BILL PANEL -->
         <div class="bill-panel">
             <div class="bg-white border-b border-gray-200 p-4 sticky top-0">
-                <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-between mb-2">
                     <h3 class="font-bold text-gray-900">Order</h3>
                     <button onclick="loadHeldOrders()" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200">
-                        <i class="fas fa-pause mr-1"></i><span id="heldCount">0</span> Held
+                        <i class="fas fa-pause mr-1"></i><span id="heldCount">0</span>
                     </button>
                 </div>
                 <div class="text-sm text-gray-600">
                     <div id="selectedTable" class="font-medium text-gray-900">No table selected</div>
-                    <div id="orderType" class="text-xs text-gray-500">-</div>
                 </div>
-            </div>
-
-            <!-- Customer Details Section -->
-            <div id="customerSection" class="bg-white border-b border-gray-200 p-3 space-y-2 hidden">
-                <label class="text-xs font-medium text-gray-700">Customer Name</label>
-                <input type="text" id="customerName" placeholder="Enter customer name" class="w-full px-3 py-1 border border-gray-300 rounded text-sm">
-                <label class="text-xs font-medium text-gray-700">Phone Number</label>
-                <input type="text" id="customerPhone" placeholder="Enter phone number" class="w-full px-3 py-1 border border-gray-300 rounded text-sm">
-                <button onclick="saveCustomerDetails()" class="w-full text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded">
-                    <i class="fas fa-save mr-1"></i>Save
-                </button>
             </div>
 
             <div class="flex-1 overflow-y-auto">
@@ -134,10 +117,6 @@
                             <input type="number" id="discountValue" placeholder="0" class="w-20 text-xs border border-gray-300 rounded px-2 py-1" min="0">
                         </div>
                     </div>
-                    <div class="flex justify-between">
-                        <span>Tax (10%):</span>
-                        <span id="taxDisplay" class="font-medium">Rs. 0.00</span>
-                    </div>
 
                     <div class="flex justify-between text-lg font-bold border-t border-gray-200 pt-2 text-red-600">
                         <span>Total:</span>
@@ -150,10 +129,13 @@
                         <button onclick="toggleLiveBill()" id="liveBillBtn" class="flex-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-2 rounded font-medium">
                             <i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill
                         </button>
-                        <button onclick="completeOrder()" class="flex-1 btn-primary text-sm">
-                            <i class="fas fa-credit-card mr-2"></i>Pay
+                        <button onclick="confirmOrder()" class="flex-1 btn-primary text-sm">
+                            <i class="fas fa-check mr-1"></i>Confirm
                         </button>
                     </div>
+                    <button onclick="printBill()" id="printBillBtn" class="w-full text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded font-medium hidden">
+                        <i class="fas fa-print mr-1"></i>Print Bill
+                    </button>
                     <div class="flex gap-2">
                         <button onclick="holdCurrentOrder()" class="flex-1 btn-secondary text-sm">
                             <i class="fas fa-pause mr-1"></i>Hold
@@ -161,96 +143,23 @@
                         <button onclick="printKot()" class="flex-1 btn-secondary text-sm">
                             <i class="fas fa-print mr-1"></i>KOT
                         </button>
-                        <button onclick="printBot()" class="flex-1 btn-secondary text-sm">
-                            <i class="fas fa-wine-glass mr-1"></i>BOT
-                        </button>
                     </div>
-                    <button onclick="showWaiterBill()" id="waiterBillBtn" class="w-full text-sm bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-2 rounded font-medium hidden">
-                        <i class="fas fa-receipt mr-1"></i>Waiter Bill
-                    </button>
-                    <button onclick="closeTableSession()" id="closeTableBtn" class="w-full text-sm bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded font-medium hidden">
-                        <i class="fas fa-door-open mr-1"></i>Close Table
-                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PAYMENT MODAL -->
-    <div id="paymentModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Payment</h2>
-                <button onclick="closeModal('paymentModal')" class="text-gray-500 hover:text-gray-700 text-xl">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <div class="flex gap-2 mb-4">
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="cash">
-                        <i class="fas fa-money-bill-wave mr-2"></i>Cash
-                    </button>
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="card">
-                        <i class="fas fa-credit-card mr-2"></i>Card
-                    </button>
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="bank_transfer">
-                        <i class="fas fa-university mr-2"></i>Bank
-                    </button>
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="mixed">
-                        <i class="fas fa-plus-circle mr-2"></i>Mixed
-                    </button>
-                </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm text-gray-600 mb-1">Total Amount</p>
-                    <p class="text-3xl font-bold text-red-600" id="paymentTotal">Rs. 0.00</p>
-                </div>
-
-                <div>
-                    <label class="text-sm font-medium text-gray-900">Amount Paid</label>
-                    <input type="number" id="amountPaid" class="w-full px-4 py-2 border border-gray-300 rounded-lg mt-1 text-lg" placeholder="0" step="0.01" min="0">
-                </div>
-
-                <div class="bg-green-50 p-3 rounded-lg">
-                    <p class="text-sm text-gray-600 mb-1">Change</p>
-                    <p class="text-2xl font-bold text-green-600" id="changeDisplay">Rs. 0.00</p>
-                </div>
-
-                <div class="flex gap-2">
-                    <button onclick="closeModal('paymentModal')" class="flex-1 btn-secondary">Cancel</button>
-                    <button id="confirmPayBtn" onclick="confirmPayment()" class="flex-1 btn-primary">Confirm Payment</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- WAITER BILL MODAL -->
-    <div id="waiterBillModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Waiter Bill</h2>
-                <button onclick="closeModal('waiterBillModal')" class="text-gray-500 hover:text-gray-700 text-xl">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div id="waiterBillContent" class="space-y-4 max-h-96 overflow-y-auto">
+    <!-- FINAL BILL MODAL -->
+    <div id="finalBillModal" class="modal">
+        <div class="modal-content" style="max-width: 100mm;">
+            <div id="billContent" class="bill-style">
                 <!-- Bill content loaded via JS -->
             </div>
-
-            <div class="flex gap-2 mt-6">
-                <button onclick="closeModal('waiterBillModal')" class="flex-1 btn-secondary">Back</button>
-                <button onclick="proceedToPayment()" class="flex-1 btn-primary">Generate Final Bill</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- FINAL INVOICE MODAL -->
-    <div id="invoiceModal" class="modal">
-        <div class="modal-content" style="max-width: 100mm;">
-            <div id="invoiceContent" class="receipt">
-                <!-- Invoice loaded via JS -->
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeFinalBill()" class="flex-1 btn-secondary">Close</button>
+                <button onclick="printFromModal()" class="flex-1 btn-primary">
+                    <i class="fas fa-print mr-1"></i>Print
+                </button>
             </div>
         </div>
     </div>
@@ -259,7 +168,7 @@
     <div id="kotModal" class="modal">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Kitchen Order Ticket</h2>
+                <h2 class="text-2xl font-bold text-gray-900">Kitchen Order</h2>
                 <button onclick="closeModal('kotModal')" class="text-gray-500 hover:text-gray-700 text-xl">
                     <i class="fas fa-times"></i>
                 </button>
@@ -277,37 +186,7 @@
 
                 <div class="flex gap-2">
                     <button onclick="closeModal('kotModal')" class="flex-1 btn-secondary">Close</button>
-                    <button onclick="printKotReceipt()" class="flex-1 btn-primary">
-                        <i class="fas fa-print mr-2"></i>Print
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- BOT MODAL -->
-    <div id="botModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Bar Order Ticket</h2>
-                <button onclick="closeModal('botModal')" class="text-gray-500 hover:text-gray-700 text-xl">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="space-y-4">
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm font-medium text-gray-900" id="botOrderNumber">Order #</p>
-                    <p class="text-sm text-gray-600" id="botTableNumber">Table #</p>
-                </div>
-
-                <div id="botItems" class="bg-white border border-gray-300 p-4 rounded-lg space-y-3 max-h-64 overflow-y-auto">
-                    <!-- BOT items loaded via JS -->
-                </div>
-
-                <div class="flex gap-2">
-                    <button onclick="closeModal('botModal')" class="flex-1 btn-secondary">Close</button>
-                    <button onclick="printBotReceipt()" class="flex-1 btn-primary">
+                    <button onclick="printKotFromModal()" class="flex-1 btn-primary">
                         <i class="fas fa-print mr-2"></i>Print
                     </button>
                 </div>
@@ -384,11 +263,13 @@
             container.innerHTML = allTables
                 .filter(t => filter === 'all' || t.section === filter)
                 .map(table => {
+                    const kotBtn = table.has_order ? `<button class="table-kot-btn" onclick="printKotForTable(${table.order_id})"><i class="fas fa-print"></i> KOT</button>` : '';
                     const tableOrder = table.has_order ? `<div class="text-xs font-medium text-red-600 mt-1">📦 ${table.order_items_count}</div>` : '';
                     const occupiedTime = table.occupied_at ? ` • ${new Date(table.occupied_at).toLocaleTimeString()}` : '';
                     return `
                         <div class="table-card ${table.status} p-3 rounded-lg text-center ${currentTable?.id === table.id ? 'active' : ''}"
                              onclick="selectTable(${table.id})">
+                            ${kotBtn}
                             <div class="font-bold text-lg text-gray-900">${table.table_number}</div>
                             <div class="text-xs text-gray-600">${table.name}</div>
                             <div class="text-xs text-gray-500">Cap: ${table.capacity}</div>
@@ -438,7 +319,7 @@
                     })
                 });
                 const data = await res.json();
-                currentOrder = { id: data.order_id, items: [], subtotal: 0, tax_amount: 0, total: 0, discount_amount: 0, customer_name: null, customer_phone: null, live_bill_enabled: false };
+                currentOrder = { id: data.order_id, items: [], subtotal: 0, tax_amount: 0, total: 0, discount_amount: 0, live_bill_enabled: false };
             }
 
             renderTableView();
@@ -448,12 +329,6 @@
 
         function renderTableView() {
             document.getElementById('selectedTable').textContent = `Table ${currentTable.table_number} - ${currentTable.name}`;
-            document.getElementById('orderType').textContent = 'Dine In Order';
-
-            const customerSection = document.getElementById('customerSection');
-            customerSection.classList.remove('hidden');
-            document.getElementById('customerName').value = currentOrder.customer_name || '';
-            document.getElementById('customerPhone').value = currentOrder.customer_phone || '';
         }
 
         async function addProductToOrder(productId, productName, price) {
@@ -473,7 +348,7 @@
                 await loadCurrentOrder();
                 renderBill();
                 if (currentOrder.live_bill_enabled) {
-                    printLiveBill();
+                    generateLiveBill();
                 }
             }
         }
@@ -512,19 +387,15 @@
 
             const subtotal = currentOrder.subtotal || 0;
             const discount = currentOrder.discount_amount || 0;
-            const tax = currentOrder.tax_amount || 0;
             const total = currentOrder.total || 0;
 
             document.getElementById('billItems').innerHTML = itemsHtml || '<p class="text-center text-gray-500 text-sm py-8">No items in order</p>';
             document.getElementById('subtotalDisplay').textContent = `Rs. ${subtotal.toFixed(2)}`;
-            document.getElementById('taxDisplay').textContent = `Rs. ${tax.toFixed(2)}`;
-            document.getElementById('totalDisplay').textContent = `Rs. ${total.toFixed(2)}`;
-            document.getElementById('paymentTotal').textContent = `Rs. ${total.toFixed(2)}`;
+            document.getElementById('totalDisplay').textContent = `Rs. ${(subtotal - discount).toFixed(2)}`;
 
-            // Update live bill button state
             const liveBillBtn = document.getElementById('liveBillBtn');
             if (currentOrder.live_bill_enabled) {
-                liveBillBtn.innerHTML = '<i class="fas fa-circle text-purple-600 live-bill-indicator mr-1"></i>Live Bill ON';
+                liveBillBtn.innerHTML = '<i class="fas fa-circle text-purple-600 mr-1"></i>Live Bill ON';
                 liveBillBtn.classList.add('bg-purple-600', 'text-white');
                 liveBillBtn.classList.remove('bg-purple-100', 'text-purple-700');
             } else {
@@ -548,7 +419,7 @@
                 await loadCurrentOrder();
                 renderBill();
                 if (currentOrder.live_bill_enabled) {
-                    printLiveBill();
+                    generateLiveBill();
                 }
             }
         }
@@ -567,7 +438,7 @@
                 await loadCurrentOrder();
                 renderBill();
                 if (currentOrder.live_bill_enabled) {
-                    printLiveBill();
+                    generateLiveBill();
                 }
             }
         }
@@ -582,25 +453,8 @@
                 await loadCurrentOrder();
                 renderBill();
                 if (currentOrder.live_bill_enabled) {
-                    printLiveBill();
+                    generateLiveBill();
                 }
-            }
-        }
-
-        async function saveCustomerDetails() {
-            if (!currentOrder?.id) return;
-
-            const res = await fetch(`{{ route("pos.order.customer", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customer_name: document.getElementById('customerName').value,
-                    customer_phone: document.getElementById('customerPhone').value
-                })
-            });
-
-            if ((await res.json()).success) {
-                await loadCurrentOrder();
             }
         }
 
@@ -616,134 +470,57 @@
             if (data.success) {
                 await loadCurrentOrder();
                 renderBill();
+                if (currentOrder.live_bill_enabled) {
+                    generateLiveBill();
+                }
             }
         }
 
-        function printLiveBill() {
-            const printWindow = window.open('', '', 'width=80mm,height=auto');
+        function generateLiveBill() {
+            const discount = currentOrder.discount_amount || 0;
             const subtotal = currentOrder.subtotal || 0;
-            const tax = subtotal * 0.10;
-            const total = subtotal + tax;
+            const total = subtotal - discount;
 
-            let itemsHtml = currentOrder.items.map(item => `
-                <div style="margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 8px;">
-                    <div style="font-weight: bold;">${item.product_name}</div>
-                    <div style="font-size: 12px; display: flex; justify-content: space-between;">
-                        <span>${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</span>
-                        <span>Rs. ${item.subtotal.toFixed(2)}</span>
-                    </div>
+            const billHtml = `
+                <div style="text-align: center; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
+                    <div style="font-weight: bold;">LIVE BILL</div>
+                    <div style="font-size: 12px;">Table ${currentTable.table_number}</div>
                 </div>
-            `).join('');
-
-            printWindow.document.write(`
-                <html>
-                <head>
-                    <style>
-                        body { font-family: 'Courier New', monospace; width: 80mm; margin: 0; padding: 10px; }
-                        .receipt { text-align: center; }
-                        .header { font-weight: bold; margin-bottom: 10px; }
-                        .items { margin: 10px 0; text-align: left; }
-                        .total { font-weight: bold; margin-top: 10px; border-top: 1px solid #000; padding-top: 5px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="receipt">
-                        <div class="header">LIVE BILL</div>
-                        <div>Table ${currentTable.table_number}</div>
-                        <div class="items">${itemsHtml}</div>
-                        <div class="total">
-                            <div>Subtotal: Rs. ${subtotal.toFixed(2)}</div>
-                            <div>Tax (10%): Rs. ${tax.toFixed(2)}</div>
-                            <div style="font-size: 16px;">Total: Rs. ${total.toFixed(2)}</div>
-                        </div>
-                        <div style="margin-top: 10px; font-size: 12px;">${new Date().toLocaleString()}</div>
+                ${currentOrder.items.map(item => `
+                    <div style="margin: 8px 0; padding: 8px 0; border-bottom: 1px dashed #ccc;">
+                        <div>${item.product_name}</div>
+                        <div style="font-size: 12px;">Qty: ${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</div>
+                        ${item.kitchen_notes ? `<div style="font-size: 11px; color: #666;">Note: ${item.kitchen_notes}</div>` : ''}
+                        <div style="text-align: right; font-weight: bold;">Rs. ${item.subtotal.toFixed(2)}</div>
                     </div>
-                </body>
-                </html>
-            `);
+                `).join('')}
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; text-align: right;">
+                    <div>Subtotal: Rs. ${subtotal.toFixed(2)}</div>
+                    ${discount > 0 ? `<div>Discount: -Rs. ${discount.toFixed(2)}</div>` : ''}
+                    <div style="font-weight: bold; font-size: 14px;">Total: Rs. ${total.toFixed(2)}</div>
+                </div>
+                <div style="text-align: center; font-size: 11px; margin-top: 10px;">${new Date().toLocaleString()}</div>
+            `;
+
+            const printWindow = window.open('', '', 'width=80mm,height=auto');
+            printWindow.document.write(`<html><head><style>body { font-family: 'Courier New', monospace; width: 80mm; padding: 10px; margin: 0; }</style></head><body>${billHtml}</body></html>`);
             printWindow.document.close();
             printWindow.print();
         }
 
-        async function showWaiterBill() {
+        async function confirmOrder() {
             if (!currentOrder?.id || currentOrder.items.length === 0) {
                 alert('Add items to order first');
                 return;
             }
 
-            const res = await fetch(`{{ route("pos.order.waiter_bill", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                let itemsHtml = data.items.map(item => `
-                    <div class="flex justify-between py-2 border-b border-gray-200">
-                        <div>
-                            <p class="font-medium text-gray-900">${item.product_name}</p>
-                            <p class="text-xs text-gray-500">${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</p>
-                        </div>
-                        <p class="font-medium text-gray-900">Rs. ${item.subtotal.toFixed(2)}</p>
-                    </div>
-                `).join('');
-
-                document.getElementById('waiterBillContent').innerHTML = `
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                        <p class="text-sm font-medium text-gray-900">Order #${data.order_number}</p>
-                        <p class="text-sm text-gray-600">Table ${data.table_number}</p>
-                        ${data.customer_name ? `<p class="text-sm text-gray-600">Customer: ${data.customer_name}</p>` : ''}
-                    </div>
-                    <div>${itemsHtml}</div>
-                    <div class="space-y-2 bg-gray-50 p-3 rounded-lg">
-                        <div class="flex justify-between">
-                            <span class="text-gray-700">Subtotal:</span>
-                            <span class="font-medium">Rs. ${data.subtotal.toFixed(2)}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-700">Tax (10%):</span>
-                            <span class="font-medium">Rs. ${data.tax_amount.toFixed(2)}</span>
-                        </div>
-                        <div class="flex justify-between text-lg font-bold text-red-600 border-t border-gray-200 pt-2">
-                            <span>Total:</span>
-                            <span>Rs. ${data.total.toFixed(2)}</span>
-                        </div>
-                    </div>
-                `;
-                openModal('waiterBillModal');
-            }
-        }
-
-        function proceedToPayment() {
-            closeModal('waiterBillModal');
-            completeOrder();
-        }
-
-        async function completeOrder() {
-            if (!currentOrder?.id || currentOrder.items.length === 0) {
-                alert('Add items to order first');
-                return;
-            }
-            openModal('paymentModal');
-        }
-
-        async function confirmPayment() {
-            const paymentMethod = selectedPaymentMethod;
-            const amountPaid = parseFloat(document.getElementById('amountPaid').value) || 0;
             const discountType = document.getElementById('discountType').value;
             const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
-
-            if (amountPaid === 0) {
-                alert('Enter amount paid');
-                return;
-            }
 
             const res = await fetch(`{{ route("pos.order.complete", ":id") }}`.replace(':id', currentOrder.id), {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    payment_method: paymentMethod,
-                    amount_paid: amountPaid,
                     discount_type: discountType || null,
                     discount_value: discountValue || 0
                 })
@@ -751,111 +528,123 @@
 
             const data = await res.json();
             if (data.success) {
-                showFinalInvoice(data);
+                showFinalBill(data);
             }
         }
 
-        function showFinalInvoice(paymentData) {
-            closeModal('paymentModal');
+        function showFinalBill(billData) {
+            const billHtml = `
+                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+                    <div style="font-weight: bold; font-size: 14px;">BILL</div>
+                    <div style="font-size: 11px;">Order: ${billData.order_number}</div>
+                    <div style="font-size: 11px;">Table: ${billData.table_number}</div>
+                    ${billData.customer_name ? `<div style="font-size: 11px;">Customer: ${billData.customer_name}</div>` : ''}
+                    ${billData.customer_phone ? `<div style="font-size: 11px;">Phone: ${billData.customer_phone}</div>` : ''}
+                    <div style="font-size: 11px;">${new Date().toLocaleString()}</div>
+                </div>
 
-            const subtotal = currentOrder.subtotal;
-            const tax = currentOrder.tax_amount;
-            const total = currentOrder.total;
-            const invoiceHtml = `
-                <div style="width: 80mm; font-family: 'Courier New', monospace; text-align: center;">
-                    <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">INVOICE</div>
-                    <div style="margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-                        <div style="font-weight: bold;">Restaurant BYOB</div>
-                        <div style="font-size: 12px;">POS System</div>
-                    </div>
-
-                    <div style="text-align: left; margin-bottom: 10px; font-size: 12px;">
-                        <div>Order #: ${currentOrder.order_number}</div>
-                        <div>Table: ${currentTable.table_number}</div>
-                        ${currentOrder.customer_name ? `<div>Customer: ${currentOrder.customer_name}</div>` : ''}
-                        ${currentOrder.customer_phone ? `<div>Phone: ${currentOrder.customer_phone}</div>` : ''}
-                        <div>Date: ${new Date().toLocaleString()}</div>
-                    </div>
-
-                    <div style="border-top: 1px solid #000; border-bottom: 1px solid #000; margin: 10px 0; padding: 10px 0; text-align: left; font-size: 12px;">
-                        ${currentOrder.items.map(item => `
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                                <span>${item.product_name}</span>
-                                <span>${item.quantity}x Rs. ${item.unit_price.toFixed(2)}</span>
-                            </div>
-                            <div style="text-align: right; margin-bottom: 5px;">Rs. ${item.subtotal.toFixed(2)}</div>
-                        `).join('')}
-                    </div>
-
-                    <div style="text-align: left; margin: 10px 0; font-size: 12px;">
+                ${billData.items.map(item => `
+                    <div style="margin: 8px 0; padding-bottom: 8px; border-bottom: 1px dashed #ccc;">
                         <div style="display: flex; justify-content: space-between;">
-                            <span>Subtotal:</span>
-                            <span>Rs. ${subtotal.toFixed(2)}</span>
+                            <div>${item.product_name}</div>
+                            <div>Rs. ${item.subtotal.toFixed(2)}</div>
                         </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Tax (10%):</span>
-                            <span>Rs. ${tax.toFixed(2)}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px; padding-top: 5px; border-top: 1px solid #000;">
-                            <span>Total:</span>
-                            <span>Rs. ${total.toFixed(2)}</span>
-                        </div>
+                        <div style="font-size: 11px; text-align: right;">Qty: ${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</div>
+                        ${item.kitchen_notes ? `<div style="font-size: 10px; color: #666;">Note: ${item.kitchen_notes}</div>` : ''}
                     </div>
+                `).join('')}
 
-                    <div style="text-align: left; margin: 10px 0; font-size: 12px;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Method:</span>
-                            <span>${paymentMethod}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Paid:</span>
-                            <span>Rs. ${paymentData.total.toFixed(2)}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Change:</span>
-                            <span>Rs. ${paymentData.change.toFixed(2)}</span>
-                        </div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #000;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Subtotal:</span>
+                        <span>Rs. ${billData.subtotal.toFixed(2)}</span>
                     </div>
-
-                    <div style="margin-top: 15px; font-weight: bold; font-size: 14px; color: #00aa00;">
-                        ✓ PAID ✓
+                    ${billData.discount_amount > 0 ? `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Discount:</span>
+                            <span>-Rs. ${billData.discount_amount.toFixed(2)}</span>
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-top: 8px;">
+                        <span>Total:</span>
+                        <span>Rs. ${billData.total.toFixed(2)}</span>
                     </div>
+                </div>
 
-                    <div style="margin-top: 10px; font-size: 10px; text-align: center; color: #666;">
-                        Thank you for your order!
+                <div style="text-align: center; font-weight: bold; font-size: 12px; margin-top: 10px; color: #00aa00;">✓ CONFIRMED ✓</div>
+            `;
+
+            document.getElementById('billContent').innerHTML = billHtml;
+            openModal('finalBillModal');
+        }
+
+        function printBill() {
+            if (!currentOrder?.id || currentOrder.items.length === 0) {
+                alert('No items in order');
+                return;
+            }
+
+            const discountType = document.getElementById('discountType').value;
+            const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
+
+            let discount = 0;
+            if (discountType === 'percentage') {
+                discount = (currentOrder.subtotal * discountValue) / 100;
+            } else if (discountType === 'fixed') {
+                discount = discountValue;
+            }
+
+            const total = currentOrder.subtotal - discount;
+
+            const billHtml = `
+                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px;">
+                    <div style="font-weight: bold; font-size: 14px;">BILL</div>
+                    <div style="font-size: 11px;">Table: ${currentTable.table_number}</div>
+                    <div style="font-size: 11px;">${new Date().toLocaleString()}</div>
+                </div>
+
+                ${currentOrder.items.map(item => `
+                    <div style="margin: 8px 0; padding-bottom: 8px; border-bottom: 1px dashed #ccc;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <div>${item.product_name}</div>
+                            <div>Rs. ${item.subtotal.toFixed(2)}</div>
+                        </div>
+                        <div style="font-size: 11px; text-align: right;">Qty: ${item.quantity}</div>
+                        ${item.kitchen_notes ? `<div style="font-size: 10px; color: #666;">Note: ${item.kitchen_notes}</div>` : ''}
+                    </div>
+                `).join('')}
+
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #000;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span>Subtotal:</span>
+                        <span>Rs. ${currentOrder.subtotal.toFixed(2)}</span>
+                    </div>
+                    ${discount > 0 ? `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Discount:</span>
+                            <span>-Rs. ${discount.toFixed(2)}</span>
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px;">
+                        <span>Total:</span>
+                        <span>Rs. ${total.toFixed(2)}</span>
                     </div>
                 </div>
             `;
 
-            document.getElementById('invoiceContent').innerHTML = invoiceHtml;
-            openModal('invoiceModal');
-
-            setTimeout(() => {
-                const printWindow = window.open('', '', 'width=80mm,height=auto');
-                printWindow.document.write(`<html><head><style>body { font-family: 'Courier New', monospace; width: 80mm; margin: 0; padding: 10px; }</style></head><body>${invoiceHtml}</body></html>`);
-                printWindow.document.close();
-                printWindow.print();
-                printWindow.close();
-
-                setTimeout(() => {
-                    closeModal('invoiceModal');
-                    resetOrder();
-                }, 1000);
-            }, 500);
+            const printWindow = window.open('', '', 'width=80mm,height=auto');
+            printWindow.document.write(`<html><head><style>body { font-family: 'Courier New', monospace; width: 80mm; padding: 10px; margin: 0; }</style></head><body>${billHtml}</body></html>`);
+            printWindow.document.close();
+            printWindow.print();
         }
 
-        function resetOrder() {
-            currentOrder = null;
-            currentTable = null;
-            document.getElementById('customerSection').classList.add('hidden');
-            document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
-            document.getElementById('selectedTable').textContent = 'No table selected';
-            document.getElementById('orderType').textContent = '-';
-            document.getElementById('discountType').value = '';
-            document.getElementById('discountValue').value = '0';
-            document.getElementById('amountPaid').value = '';
-            loadTables();
-            renderTables();
+        function printFromModal() {
+            window.print();
+        }
+
+        function closeFinalBill() {
+            closeModal('finalBillModal');
+            resetOrder();
         }
 
         async function printKot() {
@@ -869,33 +658,36 @@
             document.getElementById('kotOrderNumber').textContent = `Order #${data.order_number}`;
             document.getElementById('kotTableNumber').textContent = `Table #${currentTable.table_number}`;
             document.getElementById('kotItems').innerHTML = data.items.map(item => `
-                <div class="border-b pb-2">
-                    <p class="font-medium text-gray-900">${item.product_name} x${item.quantity}</p>
-                    ${item.kitchen_notes ? `<p class="text-xs text-gray-600 mt-1">Note: ${item.kitchen_notes}</p>` : ''}
+                <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
+                    <p style="font-weight: bold; margin: 0;">${item.product_name} x${item.quantity}</p>
+                    ${item.kitchen_notes ? `<p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Note: ${item.kitchen_notes}</p>` : ''}
                 </div>
             `).join('');
 
             openModal('kotModal');
         }
 
-        async function printBot() {
-            if (!currentOrder?.id) return;
-            const res = await fetch(`{{ route("pos.order.bot", ":id") }}`.replace(':id', currentOrder.id), {
+        async function printKotForTable(orderId) {
+            const res = await fetch(`{{ route("pos.order.kot", ":id") }}`.replace(':id', orderId), {
                 method: 'POST',
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
             });
 
             const data = await res.json();
-            document.getElementById('botOrderNumber').textContent = `Order #${data.order_number}`;
-            document.getElementById('botTableNumber').textContent = `Table #${currentTable.table_number}`;
-            document.getElementById('botItems').innerHTML = data.items.map(item => `
-                <div class="border-b pb-2">
-                    <p class="font-medium text-gray-900">${item.product_name} x${item.quantity}</p>
-                    ${item.kitchen_notes ? `<p class="text-xs text-gray-600 mt-1">Note: ${item.kitchen_notes}</p>` : ''}
+            document.getElementById('kotOrderNumber').textContent = `Order #${data.order_number}`;
+            document.getElementById('kotTableNumber').textContent = `Table #${data.table_number || 'N/A'}`;
+            document.getElementById('kotItems').innerHTML = data.items.map(item => `
+                <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
+                    <p style="font-weight: bold; margin: 0;">${item.product_name} x${item.quantity}</p>
+                    ${item.kitchen_notes ? `<p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Note: ${item.kitchen_notes}</p>` : ''}
                 </div>
             `).join('');
 
-            openModal('botModal');
+            openModal('kotModal');
+        }
+
+        function printKotFromModal() {
+            window.print();
         }
 
         async function holdCurrentOrder() {
@@ -908,24 +700,6 @@
             if ((await res.json()).success) {
                 resetOrder();
                 loadHeldOrders();
-            }
-        }
-
-        async function closeTableSession() {
-            if (!currentOrder?.id) return;
-
-            if (currentOrder.items.length === 0) {
-                const res = await fetch(`{{ route("pos.order.close_table", ":id") }}`.replace(':id', currentOrder.id), {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-                });
-
-                if ((await res.json()).success) {
-                    resetOrder();
-                }
-            } else {
-                alert('Please complete payment before closing the table');
-                completeOrder();
             }
         }
 
@@ -962,7 +736,7 @@
 
             renderBill();
             closeModal('heldOrdersModal');
-            loadTables();
+            await loadTables();
             renderTables();
         }
 
@@ -986,21 +760,24 @@
                 loadProducts(e.target.value, categoryId);
             });
 
-            document.getElementById('amountPaid').addEventListener('input', (e) => {
-                const total = parseFloat(document.getElementById('paymentTotal').textContent.replace('Rs. ', '')) || 0;
-                const change = parseFloat(e.target.value) - total;
-                document.getElementById('changeDisplay').textContent = `Rs. ${Math.max(0, change).toFixed(2)}`;
+            document.getElementById('discountValue').addEventListener('input', () => {
+                renderBill();
             });
 
-            document.querySelectorAll('.payment-method-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('bg-red-600', 'text-white', 'border-red-600'));
-                    e.currentTarget.classList.add('bg-red-600', 'text-white', 'border-red-600');
-                    selectedPaymentMethod = e.currentTarget.getAttribute('data-method');
-                });
+            document.getElementById('discountType').addEventListener('change', () => {
+                renderBill();
             });
+        }
 
-            document.querySelector('[data-method="cash"]').click();
+        function resetOrder() {
+            currentOrder = null;
+            currentTable = null;
+            document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
+            document.getElementById('selectedTable').textContent = 'No table selected';
+            document.getElementById('discountType').value = '';
+            document.getElementById('discountValue').value = '0';
+            loadTables();
+            renderTables();
         }
 
         function openModal(modalId) {
@@ -1009,14 +786,6 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('open');
-        }
-
-        function printKotReceipt() {
-            window.print();
-        }
-
-        function printBotReceipt() {
-            window.print();
         }
 
         window.addEventListener('load', initPos);
