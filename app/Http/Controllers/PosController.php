@@ -386,6 +386,71 @@ class PosController extends Controller
         return response()->json(['error' => 'Cannot close table with active order'], 400);
     }
 
+    public function payOrder(Request $request, Order $order)
+    {
+        $validated = $request->validate([
+            'payment_method' => 'required|in:cash,card,bank_transfer,mixed',
+            'amount_paid'    => 'required|numeric|min:0',
+            'discount_type'  => 'nullable|in:percentage,fixed',
+            'discount_value' => 'nullable|numeric|min:0',
+        ]);
+
+        $order->load('items', 'table');
+        $subtotal = $order->items->sum('subtotal');
+        $discount = 0;
+
+        if (($validated['discount_type'] ?? null) === 'percentage') {
+            $discount = ($subtotal * $validated['discount_value']) / 100;
+        } elseif (($validated['discount_type'] ?? null) === 'fixed') {
+            $discount = $validated['discount_value'];
+        }
+
+        $total      = $subtotal - $discount;
+        $amountPaid = $validated['amount_paid'];
+        $change     = max(0, $amountPaid - $total);
+
+        $order->update([
+            'status'          => 'completed',
+            'subtotal'        => $subtotal,
+            'discount_amount' => $discount,
+            'tax_amount'      => 0,
+            'total'           => $total,
+            'payment_method'  => $validated['payment_method'],
+            'amount_paid'     => $amountPaid,
+            'change_amount'   => $change,
+            'printed_at'      => now(),
+        ]);
+
+        if ($order->table_id) {
+            RestaurantTable::find($order->table_id)->update([
+                'status'      => 'available',
+                'occupied_at' => null,
+            ]);
+        }
+
+        return response()->json([
+            'success'         => true,
+            'order_number'    => $order->order_number,
+            'table_number'    => $order->table?->table_number,
+            'table_name'      => $order->table?->name,
+            'customer_name'   => $order->customer_name,
+            'customer_phone'  => $order->customer_phone,
+            'subtotal'        => (float) $subtotal,
+            'discount_amount' => (float) $discount,
+            'total'           => (float) $total,
+            'payment_method'  => $validated['payment_method'],
+            'amount_paid'     => (float) $amountPaid,
+            'change_amount'   => (float) $change,
+            'items'           => $order->items->map(fn($item) => [
+                'product_name'  => $item->product_name,
+                'quantity'      => $item->quantity,
+                'unit_price'    => (float) $item->unit_price,
+                'subtotal'      => (float) $item->subtotal,
+                'kitchen_notes' => $item->kitchen_notes,
+            ]),
+        ]);
+    }
+
     public function getTableOrders(RestaurantTable $table)
     {
         $orders = $table->orders()->with('items')->latest()->get();

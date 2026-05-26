@@ -3,863 +3,1315 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>POS & Billing - Restaurant BYOB</title>
+    <title>POS & Billing — Restaurant BYOB</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        .pos-grid { display: grid; grid-template-columns: 280px 1fr 360px; gap: 0; height: 100vh; }
-        @media (max-width: 1400px) { .pos-grid { grid-template-columns: 1fr; } }
-        .tables-panel { background: white; border-right: 1px solid #e5e7eb; overflow-y: auto; }
-        .menu-panel { background: white; overflow-y: auto; }
-        .bill-panel { background: #fafafa; border-left: 1px solid #e5e7eb; overflow-y: auto; display: flex; flex-direction: column; }
-        .table-card { cursor: pointer; border: 2px solid transparent; transition: all 0.2s; position: relative; }
-        .table-card:hover { border-color: #dc2626; transform: translateY(-2px); }
-        .table-card.active { border-color: #dc2626; background: #fef2f2; }
-        .table-card.available { background: #f0fdf4; border: 2px solid #22c55e; }
-        .table-card.occupied { background: #fef2f2; border: 2px solid #dc2626; }
-        .table-card.reserved { background: #fef3c7; border: 2px solid #f59e0b; }
-        .table-card.cleaning { background: #f3f4f6; border: 2px solid #6b7280; }
-        .table-kot-btn { position: absolute; top: 4px; right: 4px; padding: 4px 8px; font-size: 10px; background: #f97316; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .category-pill { @apply px-4 py-2 rounded-full text-sm font-medium cursor-pointer transition-all; border: 2px solid #e5e7eb; }
-        .category-pill.active { @apply bg-red-600 text-white border-red-600; }
-        .product-card { @apply p-4 border border-gray-200 rounded-lg cursor-pointer transition-all hover:shadow-md hover:border-red-600; }
-        .bill-item { @apply py-3 border-b border-gray-200 flex items-center justify-between text-sm; }
-        .btn-primary { @apply bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors; }
-        .btn-secondary { @apply bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; }
-        .modal.open { display: flex; }
-        .modal-content { background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
-        .bill-style { font-family: 'Courier New', monospace; padding: 15px; background: white; }
-        @media print { body * { display: none; } .bill-style { display: block; width: 80mm; margin: 0; padding: 10px; background: white; } .bill-style * { display: block; } }
+        * { box-sizing: border-box; }
+        body { background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+
+        /* ── Layout ── */
+        .pos-grid { display: grid; grid-template-columns: 270px 1fr 380px; height: 100vh; }
+
+        /* ── Panels ── */
+        .tables-panel  { background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
+        .menu-panel    { background: #f8fafc; display: flex; flex-direction: column; overflow: hidden; }
+        .bill-panel    { background: #fff; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* ── Table cards ── */
+        .table-card {
+            cursor: pointer;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            transition: all 0.18s ease;
+            position: relative;
+            background: #fff;
+            user-select: none;
+        }
+        .table-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .table-card.selected { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+        /* Status colours */
+        .table-card.available { border-color: #22c55e; background: linear-gradient(135deg,#f0fdf4,#dcfce7); }
+        .table-card.available:hover { border-color: #16a34a; }
+        .table-card.occupied  { border-color: #ef4444; background: linear-gradient(135deg,#fff1f1,#fee2e2); }
+        .table-card.occupied:hover  { border-color: #dc2626; }
+        .table-card.reserved  { border-color: #f59e0b; background: linear-gradient(135deg,#fffbeb,#fef3c7); }
+        .table-card.reserved:hover  { border-color: #d97706; }
+        .table-card.cleaning  { border-color: #94a3b8; background: #f8fafc; }
+
+        /* Status badge on card */
+        .table-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        .dot-available { background: #22c55e; }
+        .dot-occupied  { background: #ef4444; }
+        .dot-reserved  { background: #f59e0b; }
+        .dot-cleaning  { background: #94a3b8; }
+
+        /* Bottom action bar that expands on click */
+        .table-card-actions {
+            display: none;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed rgba(0,0,0,0.12);
+            gap: 6px;
+        }
+        .table-card.expanded .table-card-actions { display: flex; }
+
+        /* ── Category pills ── */
+        .cat-pill {
+            padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+            border: 2px solid #e2e8f0; cursor: pointer; white-space: nowrap; transition: all 0.15s;
+            background: #fff; color: #64748b;
+        }
+        .cat-pill:hover { border-color: #dc2626; color: #dc2626; }
+        .cat-pill.active { background: #dc2626; color: #fff; border-color: #dc2626; }
+
+        /* ── Product cards ── */
+        .product-card {
+            background: #fff; border: 2px solid #e2e8f0; border-radius: 12px;
+            padding: 14px 10px; cursor: pointer; transition: all 0.18s; text-align: center;
+        }
+        .product-card:hover { border-color: #dc2626; box-shadow: 0 4px 16px rgba(220,38,38,0.15); transform: translateY(-2px); }
+        .product-card:active { transform: scale(0.97); }
+
+        /* ── Bill items ── */
+        .bill-item {
+            display: flex; align-items: center; padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9; gap: 8px;
+        }
+        .qty-btn {
+            width: 26px; height: 26px; border: 1.5px solid #e2e8f0; border-radius: 6px;
+            background: #f8fafc; cursor: pointer; font-size: 13px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+            color: #374151;
+        }
+        .qty-btn:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
+
+        /* ── Payment method buttons ── */
+        .pay-method-btn {
+            flex: 1; padding: 10px 4px; border: 2px solid #e2e8f0; border-radius: 10px;
+            font-size: 12px; font-weight: 700; cursor: pointer; text-align: center;
+            background: #fff; transition: all 0.15s; color: #64748b;
+        }
+        .pay-method-btn:hover { border-color: #3b82f6; color: #3b82f6; }
+        .pay-method-btn.active { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+
+        /* ── Modals ── */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(15,23,42,0.55); backdrop-filter: blur(3px);
+            z-index: 50; align-items: center; justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: #fff; border-radius: 16px; padding: 28px;
+            max-width: 480px; width: 92%; max-height: 92vh; overflow-y: auto;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+        }
+
+        /* ── Live bill prompt ── */
+        .live-bill-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(15,23,42,0.6); backdrop-filter: blur(4px);
+            z-index: 60; align-items: center; justify-content: center;
+        }
+        .live-bill-overlay.open { display: flex; }
+
+        /* ── Buttons ── */
+        .btn-primary   { background: #dc2626; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+        .btn-primary:hover   { background: #b91c1c; }
+        .btn-secondary { background: #f1f5f9; color: #374151; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-green   { background: #16a34a; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+        .btn-green:hover   { background: #15803d; }
+        .btn-blue    { background: #2563eb; color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-size: 13px; }
+        .btn-blue:hover    { background: #1d4ed8; }
+        .btn-orange  { background: #ea580c; color: #fff; border: none; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-size: 12px; }
+        .btn-orange:hover  { background: #c2410c; }
+        .btn-purple  { background: #7c3aed; color: #fff; border: none; border-radius: 10px; padding: 10px 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-size: 12px; }
+        .btn-purple:hover  { background: #6d28d9; }
+
+        /* ── Scrollbars ── */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        /* ── Notification toast ── */
+        #toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 100;
+            background: #1e293b; color: #fff; padding: 12px 20px; border-radius: 10px;
+            font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; max-width: 300px;
+        }
+        #toast.show { opacity: 1; }
+        #toast.success { background: #166534; }
+        #toast.error   { background: #991b1b; }
+
+        /* ── Print ── */
+        @media print {
+            body > * { display: none !important; }
+            #printArea { display: block !important; }
+        }
+        #printArea { display: none; }
     </style>
 </head>
 <body>
-    <div class="pos-grid">
-        <!-- TABLES PANEL -->
-        <div class="tables-panel">
-            <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
-                <h2 class="font-bold text-lg text-gray-900 mb-4">Tables</h2>
-                <div class="flex gap-2">
-                    <button onclick="filterTables('all')" class="filter-btn active text-xs font-medium px-3 py-1 rounded border border-gray-300 cursor-pointer" data-filter="all">All</button>
-                    <button onclick="filterTables('main')" class="filter-btn text-xs font-medium px-3 py-1 rounded border border-gray-300 cursor-pointer" data-filter="main">Main</button>
-                    <button onclick="filterTables('vip')" class="filter-btn text-xs font-medium px-3 py-1 rounded border border-gray-300 cursor-pointer" data-filter="vip">VIP</button>
-                </div>
+
+<!-- Hidden print area -->
+<div id="printArea"></div>
+
+<div class="pos-grid">
+
+    <!-- ════════════════════════════════════════
+         COLUMN 1 — TABLES PANEL
+    ════════════════════════════════════════ -->
+    <div class="tables-panel">
+
+        <!-- Header -->
+        <div style="padding: 16px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <h2 style="font-size:16px; font-weight:800; color:#0f172a; margin:0;">
+                    <i class="fas fa-chair" style="color:#dc2626; margin-right:6px;"></i>Tables
+                </h2>
+                <span id="tableStatusBadge" style="font-size:11px; color:#64748b; font-weight:600;"></span>
             </div>
-
-            <div class="p-4 space-y-3" id="tablesContainer">
-                <!-- Tables loaded via JS -->
+            <!-- Legend -->
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                <span style="font-size:10px; font-weight:600; color:#16a34a;"><span class="table-status-dot dot-available"></span>Free</span>
+                <span style="font-size:10px; font-weight:600; color:#dc2626;"><span class="table-status-dot dot-occupied"></span>Occupied</span>
+                <span style="font-size:10px; font-weight:600; color:#d97706;"><span class="table-status-dot dot-reserved"></span>Reserved</span>
             </div>
-        </div>
-
-        <!-- MENU PANEL -->
-        <div class="menu-panel">
-            <div class="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
-                <div class="flex gap-3 mb-4">
-                    <div class="flex-1">
-                        <input type="text" id="searchInput" placeholder="Search by name or barcode..." class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm">
-                    </div>
-                    <select id="orderTypeSelect" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white">
-                        <option value="dine_in">Dine In</option>
-                        <option value="takeaway">Takeaway</option>
-                        <option value="delivery">Delivery</option>
-                        <option value="vip_room">VIP Room</option>
-                    </select>
-                </div>
-
-                <div class="flex gap-2 pb-4 border-b border-gray-200 overflow-x-auto" id="categoriesContainer">
-                    <button class="category-pill active" data-category="0">All</button>
-                </div>
-            </div>
-
-            <div class="p-4">
-                <div class="grid grid-cols-3 gap-3" id="productsContainer">
-                    <!-- Products loaded via JS -->
-                </div>
+            <!-- Filter tabs -->
+            <div style="display:flex; gap:6px;">
+                <button onclick="filterTables('all', this)" class="cat-pill active" style="padding:4px 12px;">All</button>
+                <button onclick="filterTables('main', this)" class="cat-pill" style="padding:4px 12px;">Main</button>
+                <button onclick="filterTables('vip', this)" class="cat-pill" style="padding:4px 12px;">VIP</button>
             </div>
         </div>
 
-        <!-- BILL PANEL -->
-        <div class="bill-panel">
-            <div class="bg-white border-b border-gray-200 p-4 sticky top-0">
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="font-bold text-gray-900">Order</h3>
-                    <button onclick="loadHeldOrders()" class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded hover:bg-amber-200">
-                        <i class="fas fa-pause mr-1"></i><span id="heldCount">0</span>
-                    </button>
-                </div>
-                <div class="text-sm text-gray-600">
-                    <div id="selectedTable" class="font-medium text-gray-900">No table selected</div>
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto">
-                <div class="p-4" id="billItems">
-                    <p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>
-                </div>
-            </div>
-
-            <div class="bg-white border-t border-gray-200 p-4 space-y-3">
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span id="subtotalDisplay" class="font-medium">LKR 0.00</span>
-                    </div>
-
-                    <div class="flex justify-between items-center">
-                        <label class="text-xs">Discount:</label>
-                        <div class="flex gap-2">
-                            <select id="discountType" class="text-xs border border-gray-300 rounded px-2 py-1">
-                                <option value="">None</option>
-                                <option value="percentage">%</option>
-                                <option value="fixed">Fixed</option>
-                            </select>
-                            <input type="number" id="discountValue" placeholder="0" class="w-20 text-xs border border-gray-300 rounded px-2 py-1" min="0">
-                        </div>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Tax (10%):</span>
-                        <span id="taxDisplay" class="font-medium">LKR 0.00</span>
-                    </div>
-
-                    <div class="flex justify-between text-lg font-bold border-t border-gray-200 pt-2 text-red-600">
-                        <span>Total:</span>
-                        <span id="totalDisplay">LKR 0.00</span>
-                    </div>
-                </div>
-
-                <div id="orderControls" class="space-y-2">
-                    <div class="flex gap-2">
-                        <button onclick="toggleLiveBill()" id="liveBillBtn" class="flex-1 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-2 rounded font-medium">
-                            <i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill
-                        </button>
-                        <button onclick="confirmOrder()" class="flex-1 btn-primary text-sm">
-                            <i class="fas fa-check mr-1"></i>Confirm
-                        </button>
-                    </div>
-                    <button onclick="printBill()" id="printBillBtn" class="w-full text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded font-medium hidden">
-                        <i class="fas fa-print mr-1"></i>Print Bill
-                    </button>
-                    <div class="flex gap-2">
-                        <button onclick="holdCurrentOrder()" class="flex-1 btn-secondary text-sm">
-                            <i class="fas fa-pause mr-1"></i>Hold
-                        </button>
-                        <button onclick="printKot()" class="flex-1 btn-secondary text-sm">
-                            <i class="fas fa-print mr-1"></i>KOT
-                        </button>
-                    </div>
-                </div>
-            </div>
+        <!-- Tables list -->
+        <div style="flex:1; overflow-y:auto; padding:12px;" id="tablesContainer">
+            <p style="text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">Loading tables…</p>
         </div>
+
     </div>
 
-    <!-- FINAL BILL MODAL -->
-    <div id="finalBillModal" class="modal">
-        <div class="modal-content" style="max-width: 100mm;">
-            <div id="billContent" class="bill-style">
-                <!-- Bill content loaded via JS -->
+    <!-- ════════════════════════════════════════
+         COLUMN 2 — MENU PANEL
+    ════════════════════════════════════════ -->
+    <div class="menu-panel">
+
+        <!-- Toolbar -->
+        <div style="padding:16px; background:#fff; border-bottom:1px solid #e2e8f0; flex-shrink:0;">
+            <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
+                <div style="flex:1; position:relative;">
+                    <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px;"></i>
+                    <input type="text" id="searchInput" placeholder="Search products or scan barcode…"
+                           style="width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none; background:#f8fafc;"
+                           onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
+                </div>
+                <select id="orderTypeSelect"
+                        style="padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; background:#f8fafc; color:#374151; outline:none; cursor:pointer;">
+                    <option value="dine_in">Dine In</option>
+                    <option value="takeaway">Takeaway</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="vip_room">VIP Room</option>
+                </select>
             </div>
-            <div class="flex gap-2 mt-4">
-                <button onclick="closeFinalBill()" class="flex-1 btn-secondary">Close</button>
-                <button onclick="printFromModal()" class="flex-1 btn-primary">
-                    <i class="fas fa-print mr-1"></i>Print
+            <!-- Categories -->
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:2px;" id="categoriesContainer">
+                <button class="cat-pill active" data-category="0" onclick="selectCategory(0, this)">All</button>
+            </div>
+        </div>
+
+        <!-- Active order indicator -->
+        <div id="activeOrderBanner" style="display:none; background:linear-gradient(90deg,#fef2f2,#fff1f1); border-bottom:1px solid #fecaca; padding:8px 16px; flex-shrink:0;">
+            <span style="font-size:12px; font-weight:600; color:#dc2626;">
+                <i class="fas fa-circle-dot" style="margin-right:4px;"></i>
+                <span id="activeOrderText">Adding to Table —</span>
+                <span style="color:#374151; font-weight:500; margin-left:4px;">tap a product to add it</span>
+            </span>
+        </div>
+
+        <!-- Products grid -->
+        <div style="flex:1; overflow-y:auto; padding:16px;">
+            <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px;" id="productsContainer">
+                <p style="grid-column:1/-1; text-align:center; color:#94a3b8; padding:48px 0; font-size:13px;">Loading products…</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ════════════════════════════════════════
+         COLUMN 3 — BILL PANEL
+    ════════════════════════════════════════ -->
+    <div class="bill-panel">
+
+        <!-- Zone 1: Header -->
+        <div style="padding:16px; border-bottom:1px solid #e2e8f0; flex-shrink:0; background:#fff;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <h3 style="font-size:15px; font-weight:800; color:#0f172a; margin:0;">
+                    <i class="fas fa-receipt" style="color:#dc2626; margin-right:6px;"></i>Order
+                </h3>
+                <button onclick="loadHeldOrders()" style="font-size:11px; background:#fef3c7; color:#92400e; border:none; padding:5px 10px; border-radius:8px; cursor:pointer; font-weight:700;">
+                    <i class="fas fa-pause-circle" style="margin-right:3px;"></i>Held <span id="heldCount" style="background:#f59e0b;color:#fff;border-radius:10px;padding:1px 6px;">0</span>
                 </button>
             </div>
+            <div id="selectedTableLabel" style="font-size:13px; font-weight:700; color:#64748b;">
+                <i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin
+            </div>
         </div>
-    </div>
 
-    <!-- PAYMENT MODAL -->
-    <div id="paymentModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Payment</h2>
-                <button onclick="closeModal('paymentModal')" class="text-gray-500 hover:text-gray-700 text-xl">
-                    <i class="fas fa-times"></i>
+        <!-- Zone 2: Customer info (hidden until table active) -->
+        <div id="customerInfoSection" style="display:none; background:#eff6ff; border-bottom:1px solid #bfdbfe; padding:12px 16px; flex-shrink:0;">
+            <div style="font-size:10px; font-weight:800; color:#1d4ed8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">
+                <i class="fas fa-user-circle" style="margin-right:4px;"></i>Customer Info <span style="font-weight:400; color:#64748b;">(optional)</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <input type="text" id="customerName" placeholder="Customer name"
+                       style="font-size:12px; border:1.5px solid #bfdbfe; border-radius:8px; padding:7px 10px; background:#fff; outline:none; width:100%;"
+                       onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#bfdbfe'; saveCustomerInfo()">
+                <input type="text" id="customerPhone" placeholder="Phone number"
+                       style="font-size:12px; border:1.5px solid #bfdbfe; border-radius:8px; padding:7px 10px; background:#fff; outline:none; width:100%;"
+                       onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#bfdbfe'; saveCustomerInfo()">
+            </div>
+        </div>
+
+        <!-- Zone 3: Order items (scrollable) -->
+        <div style="flex:1; overflow-y:auto; padding:12px 16px;" id="billItemsWrapper">
+            <div id="billItems">
+                <div style="text-align:center; padding:48px 0; color:#cbd5e1;">
+                    <i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i>
+                    <p style="font-size:13px; margin:0;">Select a table, then add items</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zone 4: Fixed bottom controls -->
+        <div style="border-top:1px solid #e2e8f0; padding:14px 16px; background:#fff; flex-shrink:0; display:flex; flex-direction:column; gap:10px;">
+
+            <!-- Totals -->
+            <div style="font-size:13px; display:flex; flex-direction:column; gap:5px;">
+                <div style="display:flex; justify-content:space-between; color:#64748b;">
+                    <span>Subtotal</span>
+                    <span id="subtotalDisplay" style="font-weight:600; color:#374151;">Rs. 0.00</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color:#64748b;">Discount</span>
+                    <div style="display:flex; gap:6px;">
+                        <select id="discountType" onchange="recalcTotal()"
+                                style="font-size:11px; border:1.5px solid #e2e8f0; border-radius:7px; padding:4px 8px; background:#f8fafc; outline:none; cursor:pointer;">
+                            <option value="">None</option>
+                            <option value="percentage">%</option>
+                            <option value="fixed">Fixed</option>
+                        </select>
+                        <input type="number" id="discountValue" placeholder="0" min="0" oninput="recalcTotal()"
+                               style="width:64px; font-size:11px; border:1.5px solid #e2e8f0; border-radius:7px; padding:4px 8px; outline:none; background:#f8fafc;">
+                    </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding-top:6px; border-top:2px solid #f1f5f9; font-weight:800; font-size:16px; color:#dc2626;">
+                    <span>Total</span>
+                    <span id="totalDisplay">Rs. 0.00</span>
+                </div>
+            </div>
+
+            <!-- Payment method (hidden until items exist) -->
+            <div id="paymentSection" style="display:none;">
+                <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:8px;">Payment Method</div>
+                <div style="display:flex; gap:7px;">
+                    <button class="pay-method-btn active" data-method="cash" onclick="selectPaymentMethod('cash')">
+                        <i class="fas fa-money-bill-wave" style="display:block; font-size:16px; margin-bottom:3px;"></i>Cash
+                    </button>
+                    <button class="pay-method-btn" data-method="card" onclick="selectPaymentMethod('card')">
+                        <i class="fas fa-credit-card" style="display:block; font-size:16px; margin-bottom:3px;"></i>Card
+                    </button>
+                    <button class="pay-method-btn" data-method="bank_transfer" onclick="selectPaymentMethod('bank_transfer')">
+                        <i class="fas fa-university" style="display:block; font-size:16px; margin-bottom:3px;"></i>Bank
+                    </button>
+                </div>
+                <!-- Cash amount input -->
+                <div id="cashSection" style="display:flex; gap:8px; margin-top:8px;">
+                    <div style="flex:1;">
+                        <label style="font-size:10px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Amount Paid (Rs.)</label>
+                        <input type="number" id="amountPaid" placeholder="0.00" min="0" oninput="updateChange()"
+                               style="width:100%; font-size:13px; font-weight:700; border:1.5px solid #e2e8f0; border-radius:8px; padding:7px 10px; outline:none;"
+                               onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:10px; font-weight:600; color:#64748b; display:block; margin-bottom:3px;">Change</label>
+                        <div id="changeDisplay" style="font-size:14px; font-weight:800; color:#16a34a; padding:8px 10px; background:#f0fdf4; border-radius:8px; border:1.5px solid #bbf7d0;">Rs. 0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div id="orderControls" style="display:flex; flex-direction:column; gap:7px;">
+
+                <!-- Row 1: Live Bill + KOT -->
+                <div style="display:flex; gap:7px;">
+                    <button onclick="toggleLiveBill()" id="liveBillBtn" class="btn-purple" style="flex:1;">
+                        <i class="fas fa-circle" id="liveBillIcon" style="font-size:9px; margin-right:5px; color:rgba(255,255,255,0.5);"></i>Live Bill
+                    </button>
+                    <button onclick="printKot()" class="btn-orange" style="flex:1;">
+                        <i class="fas fa-receipt" style="margin-right:4px;"></i>Print KOT
+                    </button>
+                </div>
+
+                <!-- Row 2: Waiter Bill (hidden until items exist) -->
+                <button onclick="printWaiterBill()" id="waiterBillBtn" class="btn-blue" style="display:none; width:100%;">
+                    <i class="fas fa-file-invoice" style="margin-right:4px;"></i>Generate Waiter Bill
                 </button>
-            </div>
 
-            <div class="space-y-4">
-                <div class="flex gap-2 mb-4">
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="cash">
-                        <i class="fas fa-money-bill-wave mr-2"></i>Cash
-                    </button>
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="card">
-                        <i class="fas fa-credit-card mr-2"></i>Card
-                    </button>
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="bank_transfer">
-                        <i class="fas fa-university mr-2"></i>Bank
-                    </button>
-                    <button class="payment-method-btn flex-1 py-3 border-2 border-gray-300 rounded-lg font-medium cursor-pointer text-sm" data-method="mixed">
-                        <i class="fas fa-plus-circle mr-2"></i>Mixed
-                    </button>
-                </div>
-
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm text-gray-600 mb-1">Total Amount</p>
-                    <p class="text-3xl font-bold text-red-600" id="paymentTotal">LKR 0.00</p>
-                </div>
-
-                <div>
-                    <label class="text-sm font-medium text-gray-900">Amount Paid</label>
-                    <input type="number" id="amountPaid" class="w-full px-4 py-2 border border-gray-300 rounded-lg mt-1 text-lg" placeholder="0" step="0.01" min="0">
-                </div>
-
-                <div class="bg-green-50 p-3 rounded-lg">
-                    <p class="text-sm text-gray-600 mb-1">Change</p>
-                    <p class="text-2xl font-bold text-green-600" id="changeDisplay">LKR 0.00</p>
-                </div>
-
-                <div class="flex gap-2">
-                    <button onclick="closeModal('paymentModal')" class="flex-1 btn-secondary">Cancel</button>
-                    <button id="confirmPayBtn" onclick="confirmPayment()" class="flex-1 btn-primary">Confirm Payment</button>
-                </div>
-
-            </div>
-        </div>
-    </div>
-
-    <!-- KOT MODAL -->
-    <div id="kotModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Kitchen Order</h2>
-                <button onclick="closeModal('kotModal')" class="text-gray-500 hover:text-gray-700 text-xl">
-                    <i class="fas fa-times"></i>
+                <!-- Row 3: Confirm Live Bill (shown in live bill mode with items) -->
+                <button onclick="confirmLiveBill()" id="confirmLiveBillBtn" class="btn-primary" style="display:none; width:100%;">
+                    <i class="fas fa-bolt" style="margin-right:4px;"></i>Confirm &amp; Print Live Bill
                 </button>
-            </div>
 
-            <div class="space-y-4">
-                <div class="bg-gray-50 p-3 rounded-lg">
-                    <p class="text-sm font-medium text-gray-900" id="kotOrderNumber">Order #</p>
-                    <p class="text-sm text-gray-600" id="kotTableNumber">Table #</p>
-                </div>
-
-                <div id="kotItems" class="bg-white border border-gray-300 p-4 rounded-lg space-y-3 max-h-64 overflow-y-auto">
-                    <!-- KOT items loaded via JS -->
-                </div>
-
-                <div class="flex gap-2">
-                    <button onclick="closeModal('kotModal')" class="flex-1 btn-secondary">Close</button>
-                    <button onclick="printKotFromModal()" class="flex-1 btn-primary">
-                        <i class="fas fa-print mr-2"></i>Print
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- HELD ORDERS MODAL -->
-    <div id="heldOrdersModal" class="modal">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">Held Orders</h2>
-                <button onclick="closeModal('heldOrdersModal')" class="text-gray-500 hover:text-gray-700 text-xl">
-                    <i class="fas fa-times"></i>
+                <!-- Row 4: Pay & Close (hidden until items exist) -->
+                <button onclick="initiatePayment()" id="payBtn" class="btn-green" style="display:none; width:100%; font-size:14px; padding:12px;">
+                    <i class="fas fa-check-circle" style="margin-right:4px;"></i>Pay &amp; Close Table
                 </button>
-            </div>
 
-            <div id="heldOrdersList" class="space-y-3 max-h-96 overflow-y-auto">
-                <!-- Held orders loaded via JS -->
+                <!-- Row 5: Hold -->
+                <button onclick="holdCurrentOrder()" id="holdBtn" class="btn-secondary" style="display:none; width:100%;">
+                    <i class="fas fa-pause" style="margin-right:4px;"></i>Hold Order
+                </button>
+
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        let currentOrder = null;
-        let currentTable = null;
-        let allTables = [];
-        let allProducts = [];
-        let allCategories = @json($categories);
-        let selectedPaymentMethod = 'cash';
+<!-- ══════════════════════════════════════════════════
+     MODAL: Final Bill (paid)
+══════════════════════════════════════════════════ -->
+<div id="finalBillModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:380px; padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="font-size:16px; font-weight:800; color:#0f172a; margin:0;"><i class="fas fa-receipt" style="color:#16a34a; margin-right:6px;"></i>Final Bill</h2>
+            <button onclick="closeModal('finalBillModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">&times;</button>
+        </div>
+        <div id="billContent" style="font-family:'Courier New',monospace; background:#fafafa; border-radius:8px; padding:16px; font-size:12px; border:1px solid #e2e8f0;"></div>
+        <div style="display:flex; gap:10px; margin-top:16px;">
+            <button onclick="closeModal('finalBillModal')" class="btn-secondary" style="flex:1;">Close</button>
+            <button onclick="printBillContent()" class="btn-primary" style="flex:1;"><i class="fas fa-print" style="margin-right:4px;"></i>Print</button>
+        </div>
+    </div>
+</div>
 
-        async function initPos() {
+<!-- ══════════════════════════════════════════════════
+     MODAL: KOT
+══════════════════════════════════════════════════ -->
+<div id="kotModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:400px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;"><i class="fas fa-utensils" style="color:#ea580c; margin-right:6px;"></i>Kitchen Order</h2>
+            <button onclick="closeModal('kotModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+        </div>
+        <div style="background:#f8fafc; border-radius:10px; padding:12px; margin-bottom:16px;">
+            <p style="font-size:13px; font-weight:700; margin:0 0 3px;" id="kotOrderNumber">Order #—</p>
+            <p style="font-size:13px; color:#64748b; margin:0;" id="kotTableNumber">Table —</p>
+        </div>
+        <div id="kotItems" style="max-height:260px; overflow-y:auto; background:#fff; border:1.5px solid #e2e8f0; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:10px;"></div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button onclick="closeModal('kotModal')" class="btn-secondary" style="flex:1;">Close</button>
+            <button onclick="printKotContent()" class="btn-orange" style="flex:1;"><i class="fas fa-print" style="margin-right:4px;"></i>Print</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL: Held Orders
+══════════════════════════════════════════════════ -->
+<div id="heldOrdersModal" class="modal-overlay">
+    <div class="modal-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;"><i class="fas fa-pause-circle" style="color:#f59e0b; margin-right:6px;"></i>Held Orders</h2>
+            <button onclick="closeModal('heldOrdersModal')" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8;">&times;</button>
+        </div>
+        <div id="heldOrdersList" style="display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto;"></div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     LIVE BILL: Close/Continue Prompt
+══════════════════════════════════════════════════ -->
+<div id="liveBillPrompt" class="live-bill-overlay">
+    <div style="background:#fff; border-radius:20px; padding:28px; max-width:340px; width:90%; box-shadow:0 32px 80px rgba(0,0,0,0.25);">
+        <div style="text-align:center; margin-bottom:20px;">
+            <div style="width:56px; height:56px; background:#f0fdf4; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
+                <i class="fas fa-check" style="font-size:22px; color:#16a34a;"></i>
+            </div>
+            <h3 style="font-size:17px; font-weight:800; color:#0f172a; margin:0 0 6px;">Live Bill Printed!</h3>
+            <p style="font-size:13px; color:#64748b; margin:0;">What would you like to do next?</p>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="handleLiveBillPrompt('close')" class="btn-primary" style="flex:1; padding:12px;">
+                <i class="fas fa-times-circle" style="margin-right:4px;"></i>Close Table
+            </button>
+            <button onclick="handleLiveBillPrompt('continue')" class="btn-secondary" style="flex:1; padding:12px;">
+                <i class="fas fa-plus-circle" style="margin-right:4px;"></i>Add More
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+    // ── State ──
+    let currentOrder  = null;
+    let currentTable  = null;
+    let allTables     = [];
+    let allProducts   = [];
+    let allCategories = @json($categories);
+    let selectedPaymentMethod = 'cash';
+    let currentKotContent     = '';
+    let currentBillContent    = '';
+    let tableFilter           = 'all';
+
+    // ── Bootstrap ──
+    async function initPos() {
+        await loadTables();
+        loadCategories();
+        await loadProducts();
+        loadHeldOrders();
+        setupEventListeners();
+    }
+
+    // ═══════════════════════════════════════════
+    // TABLES
+    // ═══════════════════════════════════════════
+
+    async function loadTables() {
+        const res = await fetch('{{ route("pos.tables") }}');
+        allTables = await res.json();
+        renderTables();
+        updateTableStatusBadge();
+    }
+
+    function updateTableStatusBadge() {
+        const occupied = allTables.filter(t => t.status === 'occupied').length;
+        const total    = allTables.length;
+        document.getElementById('tableStatusBadge').textContent = occupied + '/' + total + ' occupied';
+    }
+
+    function filterTables(section, btn) {
+        tableFilter = section;
+        const panel = document.querySelector('.tables-panel');
+        if (panel) panel.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        renderTables();
+    }
+
+    function renderTables() {
+        const container = document.getElementById('tablesContainer');
+        const filtered  = tableFilter === 'all'
+            ? allTables
+            : allTables.filter(t => t.section === tableFilter);
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">No tables found</p>';
+            return;
+        }
+
+        container.innerHTML = filtered.map(function(table) {
+            const isOccupied = table.status === 'occupied' || table.status === 'reserved';
+            const isSelected = currentTable && currentTable.id === table.id;
+
+            let itemBadge = '';
+            if (table.has_order && table.order_items_count > 0) {
+                itemBadge = '<div style="font-size:11px; font-weight:800; color:#dc2626; margin-top:4px;">'
+                    + '<i class="fas fa-circle-dot" style="font-size:8px;"></i> '
+                    + table.order_items_count + ' item' + (table.order_items_count !== 1 ? 's' : '')
+                    + '</div>';
+            }
+
+            let timeLabel = '';
+            if (table.occupied_at) {
+                const t = new Date(table.occupied_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                timeLabel = '<div style="font-size:10px; color:#94a3b8; margin-top:2px;"><i class="fas fa-clock" style="font-size:9px;"></i> ' + t + '</div>';
+            }
+
+            let actionBar = '';
+            if (isOccupied && table.has_order) {
+                actionBar = '<div class="table-card-actions">'
+                    + '<button onclick="viewTableOrder(' + table.order_id + '); event.stopPropagation();" '
+                    + 'style="flex:1; font-size:11px; font-weight:700; background:#2563eb; color:#fff; border:none; border-radius:7px; padding:6px 4px; cursor:pointer;">'
+                    + '<i class="fas fa-eye" style="margin-right:3px;"></i>View Order</button>'
+                    + '<button onclick="printKotForTable(' + table.order_id + '); event.stopPropagation();" '
+                    + 'style="flex:1; font-size:11px; font-weight:700; background:#ea580c; color:#fff; border:none; border-radius:7px; padding:6px 4px; cursor:pointer;">'
+                    + '<i class="fas fa-print" style="margin-right:3px;"></i>KOT</button>'
+                    + '</div>';
+            }
+
+            const clickFn = isOccupied
+                ? 'expandTableCard(' + table.id + ', event)'
+                : 'startNewOrder(' + table.id + ')';
+
+            const vipBadge = table.section === 'vip'
+                ? '<div style="position:absolute; top:6px; left:6px; font-size:9px; font-weight:800; background:#7c3aed; color:#fff; padding:2px 6px; border-radius:6px;">VIP</div>'
+                : '';
+
+            return '<div id="tc-' + table.id + '" class="table-card ' + table.status + (isSelected ? ' selected' : '') + '" onclick="' + clickFn + '">'
+                + vipBadge
+                + '<div style="font-size:20px; font-weight:900; color:#0f172a; line-height:1;">' + table.table_number + '</div>'
+                + '<div style="font-size:11px; font-weight:600; color:#64748b; margin-top:2px;">' + escapeHtml(table.name) + '</div>'
+                + '<div style="font-size:10px; color:#94a3b8;">Cap: ' + table.capacity + '</div>'
+                + itemBadge + timeLabel + actionBar
+                + '</div>';
+        }).join('');
+    }
+
+    function expandTableCard(tableId, event) {
+        event.stopPropagation();
+        const card       = document.getElementById('tc-' + tableId);
+        const isExpanded = card.classList.contains('expanded');
+        document.querySelectorAll('.table-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
+        if (!isExpanded) {
+            card.classList.add('expanded');
+        }
+    }
+
+    async function viewTableOrder(orderId) {
+        showLoading();
+        const res   = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', orderId));
+        const order = await res.json();
+        currentOrder = order;
+        currentTable = allTables.find(function(t) { return t.id === order.table_id; }) || null;
+        // Collapse all expanded cards, mark selected
+        document.querySelectorAll('.table-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
+        document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
+        if (currentTable) {
+            const card = document.getElementById('tc-' + currentTable.id);
+            if (card) card.classList.add('selected');
+        }
+        renderTableView();
+        renderBill();
+        hideLoading();
+    }
+
+    async function startNewOrder(tableId) {
+        const table = allTables.find(function(t) { return t.id === tableId; });
+        if (!table) return;
+
+        showLoading();
+        currentTable = table;
+        const res  = await fetch('{{ route("pos.order.create") }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                table_id: tableId,
+                order_type: document.getElementById('orderTypeSelect').value
+            })
+        });
+        const data = await res.json();
+        currentOrder = {
+            id: data.order_id, order_number: data.order_number,
+            items: [], subtotal: 0, total: 0,
+            discount_amount: 0, live_bill_enabled: false,
+            customer_name: null, customer_phone: null,
+            table_id: tableId,
+        };
+        renderTableView();
+        renderBill();
+        await loadTables();
+        hideLoading();
+        toast('Table ' + table.table_number + ' opened', 'success');
+    }
+
+    // ═══════════════════════════════════════════
+    // PRODUCTS
+    // ═══════════════════════════════════════════
+
+    async function loadProducts(search, categoryId) {
+        search     = search     || '';
+        categoryId = categoryId || 0;
+        const params = new URLSearchParams();
+        if (search)         params.append('search', search);
+        if (categoryId > 0) params.append('category_id', categoryId);
+        const res = await fetch('{{ route("pos.products") }}?' + params);
+        allProducts = await res.json();
+        renderProducts();
+    }
+
+    function loadCategories() {
+        const container = document.getElementById('categoriesContainer');
+        container.innerHTML = '<button class="cat-pill active" data-category="0" onclick="selectCategory(0, this)">All</button>';
+        allCategories.forEach(function(cat) {
+            const btn = document.createElement('button');
+            btn.className = 'cat-pill';
+            btn.textContent = cat.name;
+            btn.setAttribute('data-category', cat.id);
+            btn.onclick = function() { selectCategory(cat.id, btn); };
+            container.appendChild(btn);
+        });
+    }
+
+    function selectCategory(id, btn) {
+        document.querySelectorAll('#categoriesContainer .cat-pill').forEach(function(b) { b.classList.remove('active'); });
+        if (btn) btn.classList.add('active');
+        loadProducts(document.getElementById('searchInput').value, id);
+    }
+
+    function renderProducts() {
+        const container = document.getElementById('productsContainer');
+        if (allProducts.length === 0) {
+            container.innerHTML = '<p style="grid-column:1/-1; text-align:center; color:#94a3b8; padding:48px 0; font-size:13px;"><i class="fas fa-search" style="font-size:28px; display:block; margin-bottom:10px;"></i>No products found</p>';
+            return;
+        }
+        container.innerHTML = allProducts.map(function(p) {
+            return '<div class="product-card" onclick="addProductToOrder(' + p.id + ', \'' + escapeJs(p.name) + '\', ' + p.price + ')">'
+                + '<div style="height:52px; background:linear-gradient(135deg,#fef2f2,#fee2e2); border-radius:8px; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">'
+                + '<i class="fas fa-utensils" style="color:#dc2626; font-size:18px;"></i></div>'
+                + '<p style="font-size:12px; font-weight:700; color:#0f172a; margin:0 0 4px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">' + escapeHtml(p.name) + '</p>'
+                + '<p style="font-size:14px; font-weight:900; color:#dc2626; margin:0;">Rs. ' + p.price.toFixed(2) + '</p>'
+                + '</div>';
+        }).join('');
+    }
+
+    // ═══════════════════════════════════════════
+    // ORDER MANAGEMENT
+    // ═══════════════════════════════════════════
+
+    async function addProductToOrder(productId, productName, price) {
+        if (!currentOrder || !currentOrder.id) {
+            toast('Please select a table first', 'error');
+            return;
+        }
+        // Optimistic update
+        const existing = currentOrder.items.find(function(i) { return i.product_id === productId; });
+        if (existing) {
+            existing.quantity++;
+            existing.subtotal = existing.unit_price * existing.quantity;
+        } else {
+            currentOrder.items.push({
+                id: null, product_id: productId, product_name: productName,
+                unit_price: price, quantity: 1, subtotal: price, kitchen_notes: null
+            });
+        }
+        recalcOrderTotals();
+        renderBill();
+
+        const res = await fetch('{{ route("pos.item.add", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_id: productId, quantity: 1 })
+        });
+        const data = await res.json();
+        if (data.success) await syncOrder();
+    }
+
+    async function syncOrder() {
+        if (!currentOrder || !currentOrder.id) return;
+        const res = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', currentOrder.id));
+        currentOrder = await res.json();
+        renderBill();
+    }
+
+    async function increaseQty(itemId) {
+        const item = currentOrder.items.find(function(i) { return i.id === itemId; });
+        if (!item) return;
+        item.quantity++;
+        item.subtotal = item.unit_price * item.quantity;
+        recalcOrderTotals();
+        renderBill();
+        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity: item.quantity })
+        });
+        await syncOrder();
+    }
+
+    async function decreaseQty(itemId) {
+        const item = currentOrder.items.find(function(i) { return i.id === itemId; });
+        if (!item || item.quantity <= 1) return;
+        item.quantity--;
+        item.subtotal = item.unit_price * item.quantity;
+        recalcOrderTotals();
+        renderBill();
+        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity: item.quantity })
+        });
+        await syncOrder();
+    }
+
+    async function removeItem(itemId) {
+        currentOrder.items = currentOrder.items.filter(function(i) { return i.id !== itemId; });
+        recalcOrderTotals();
+        renderBill();
+        await fetch('{{ route("pos.item.remove", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        await syncOrder();
+    }
+
+    function recalcOrderTotals() {
+        if (!currentOrder) return;
+        const subtotal = currentOrder.items.reduce(function(s, i) { return s + i.subtotal; }, 0);
+        currentOrder.subtotal = subtotal;
+        currentOrder.total    = subtotal;
+        currentOrder.discount_amount = 0;
+    }
+
+    // ═══════════════════════════════════════════
+    // BILL PANEL RENDER
+    // ═══════════════════════════════════════════
+
+    function renderTableView() {
+        if (!currentTable) {
+            document.getElementById('selectedTableLabel').innerHTML =
+                '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin';
+            document.getElementById('customerInfoSection').style.display = 'none';
+            document.getElementById('activeOrderBanner').style.display   = 'none';
+            return;
+        }
+        const sectionLabel = currentTable.section === 'vip' ? '🟣 VIP' : '🍽';
+        document.getElementById('selectedTableLabel').innerHTML =
+            sectionLabel + ' <strong>Table ' + currentTable.table_number + '</strong> — ' + escapeHtml(currentTable.name);
+        document.getElementById('customerInfoSection').style.display = 'block';
+        document.getElementById('activeOrderBanner').style.display   = 'flex';
+        document.getElementById('activeOrderText').textContent = 'Adding to Table ' + currentTable.table_number;
+
+        if (currentOrder) {
+            document.getElementById('customerName').value  = currentOrder.customer_name  || '';
+            document.getElementById('customerPhone').value = currentOrder.customer_phone || '';
+        }
+    }
+
+    function renderBill() {
+        if (!currentOrder || !currentOrder.items) {
+            document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table, then add items</p></div>';
+            setBottomControls(false);
+            return;
+        }
+
+        const hasItems = currentOrder.items.length > 0;
+
+        if (!hasItems) {
+            document.getElementById('billItems').innerHTML =
+                '<p style="text-align:center; color:#94a3b8; font-size:13px; padding:32px 0;"><i class="fas fa-plus-circle" style="display:block; font-size:24px; margin-bottom:8px;"></i>No items yet — tap a product</p>';
+        } else {
+            document.getElementById('billItems').innerHTML = currentOrder.items.map(function(item) {
+                const noteHtml = item.kitchen_notes
+                    ? '<p style="font-size:10px; color:#f59e0b; margin:2px 0 0;"><i class="fas fa-note-sticky" style="margin-right:3px;"></i>' + escapeHtml(item.kitchen_notes) + '</p>'
+                    : '';
+                const removeBtn = item.id
+                    ? '<button onclick="removeItem(' + item.id + ')" style="font-size:10px; color:#ef4444; background:none; border:none; cursor:pointer; padding:0; margin-top:3px;"><i class="fas fa-trash"></i> Remove</button>'
+                    : '';
+                const decBtn = item.id
+                    ? '<button class="qty-btn" onclick="decreaseQty(' + item.id + ')">−</button>'
+                    : '<button class="qty-btn" style="opacity:0.4;" disabled>−</button>';
+                const incBtn = item.id
+                    ? '<button class="qty-btn" onclick="increaseQty(' + item.id + ')">+</button>'
+                    : '<button class="qty-btn" style="opacity:0.4;" disabled>+</button>';
+
+                return '<div class="bill-item">'
+                    + '<div style="flex:1; min-width:0;">'
+                    + '<p style="font-size:13px; font-weight:700; color:#0f172a; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(item.product_name) + '</p>'
+                    + '<p style="font-size:11px; color:#94a3b8; margin:2px 0 0;">Rs. ' + item.unit_price.toFixed(2) + ' each</p>'
+                    + noteHtml
+                    + '</div>'
+                    + '<div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">'
+                    + decBtn
+                    + '<span style="min-width:22px; text-align:center; font-size:13px; font-weight:800; color:#0f172a;">' + item.quantity + '</span>'
+                    + incBtn
+                    + '</div>'
+                    + '<div style="min-width:72px; text-align:right; flex-shrink:0;">'
+                    + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0;">Rs. ' + item.subtotal.toFixed(2) + '</p>'
+                    + removeBtn
+                    + '</div>'
+                    + '</div>';
+            }).join('');
+        }
+
+        // Totals
+        const subtotal = currentOrder.subtotal || 0;
+        const discount = calcDiscount(subtotal);
+        const total    = Math.max(0, subtotal - discount);
+
+        document.getElementById('subtotalDisplay').textContent = 'Rs. ' + subtotal.toFixed(2);
+        document.getElementById('totalDisplay').textContent    = 'Rs. ' + total.toFixed(2);
+
+        setBottomControls(hasItems);
+        updateLiveBillButton();
+        updateChange();
+        scrollBillToBottom();
+    }
+
+    function setBottomControls(hasItems) {
+        const liveBillOn = currentOrder && currentOrder.live_bill_enabled;
+        document.getElementById('paymentSection').style.display     = hasItems ? 'block' : 'none';
+        document.getElementById('waiterBillBtn').style.display      = hasItems ? 'block' : 'none';
+        document.getElementById('payBtn').style.display             = hasItems ? 'block' : 'none';
+        document.getElementById('holdBtn').style.display            = hasItems ? 'block' : 'none';
+        document.getElementById('confirmLiveBillBtn').style.display = (hasItems && liveBillOn) ? 'block' : 'none';
+    }
+
+    function updateLiveBillButton() {
+        const btn = document.getElementById('liveBillBtn');
+        const on  = currentOrder && currentOrder.live_bill_enabled;
+        if (on) {
+            btn.style.background = '#5b21b6';
+            btn.innerHTML = '<i class="fas fa-circle" style="font-size:9px; margin-right:5px; color:#a78bfa;"></i>Live Bill ON';
+        } else {
+            btn.style.background = '#7c3aed';
+            btn.innerHTML = '<i class="fas fa-circle" style="font-size:9px; margin-right:5px; color:rgba(255,255,255,0.4);"></i>Live Bill';
+        }
+    }
+
+    function scrollBillToBottom() {
+        const wrapper = document.getElementById('billItemsWrapper');
+        wrapper.scrollTop = wrapper.scrollHeight;
+    }
+
+    // ═══════════════════════════════════════════
+    // CUSTOMER INFO
+    // ═══════════════════════════════════════════
+
+    async function saveCustomerInfo() {
+        if (!currentOrder || !currentOrder.id) return;
+        const name  = document.getElementById('customerName').value.trim();
+        const phone = document.getElementById('customerPhone').value.trim();
+        if (currentOrder.customer_name === name && currentOrder.customer_phone === phone) return;
+        await fetch('{{ route("pos.order.customer", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customer_name: name, customer_phone: phone })
+        });
+        currentOrder.customer_name  = name;
+        currentOrder.customer_phone = phone;
+    }
+
+    // ═══════════════════════════════════════════
+    // PAYMENT
+    // ═══════════════════════════════════════════
+
+    function selectPaymentMethod(method) {
+        selectedPaymentMethod = method;
+        document.querySelectorAll('.pay-method-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.method === method);
+        });
+        document.getElementById('cashSection').style.display = method === 'cash' ? 'flex' : 'none';
+        if (method !== 'cash') document.getElementById('changeDisplay').textContent = 'Rs. 0.00';
+    }
+
+    function calcDiscount(subtotal) {
+        const type  = document.getElementById('discountType').value;
+        const value = parseFloat(document.getElementById('discountValue').value) || 0;
+        if (type === 'percentage') return (subtotal * value) / 100;
+        if (type === 'fixed')      return value;
+        return 0;
+    }
+
+    function recalcTotal() {
+        if (!currentOrder) return;
+        const subtotal = currentOrder.subtotal || 0;
+        const discount = calcDiscount(subtotal);
+        document.getElementById('totalDisplay').textContent = 'Rs. ' + Math.max(0, subtotal - discount).toFixed(2);
+        updateChange();
+    }
+
+    function updateChange() {
+        if (selectedPaymentMethod !== 'cash') return;
+        const subtotal = currentOrder ? (currentOrder.subtotal || 0) : 0;
+        const discount = calcDiscount(subtotal);
+        const total    = Math.max(0, subtotal - discount);
+        const paid     = parseFloat(document.getElementById('amountPaid').value) || 0;
+        const change   = Math.max(0, paid - total);
+        const el       = document.getElementById('changeDisplay');
+        el.textContent = 'Rs. ' + change.toFixed(2);
+        el.style.color = change > 0 ? '#16a34a' : '#94a3b8';
+    }
+
+    async function initiatePayment() {
+        if (!currentOrder || !currentOrder.id || !currentOrder.items || !currentOrder.items.length) {
+            toast('No items in order', 'error'); return;
+        }
+        await saveCustomerInfo();
+
+        const subtotal    = currentOrder.subtotal || 0;
+        const discountVal = calcDiscount(subtotal);
+        const total       = Math.max(0, subtotal - discountVal);
+        const amountPaid  = selectedPaymentMethod === 'cash'
+            ? (parseFloat(document.getElementById('amountPaid').value) || total)
+            : total;
+
+        const res = await fetch('{{ route("pos.order.pay", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                payment_method: selectedPaymentMethod,
+                amount_paid:    amountPaid,
+                discount_type:  document.getElementById('discountType').value || null,
+                discount_value: parseFloat(document.getElementById('discountValue').value) || 0,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showPaidBill(data);
             await loadTables();
-            await loadCategories();
-            await loadProducts();
-            loadHeldOrders();
-            setupEventListeners();
+            toast('Payment received — table closed!', 'success');
+        } else {
+            toast(data.error || 'Payment failed', 'error');
         }
+    }
 
-        async function loadTables() {
-            const res = await fetch('{{ route("pos.tables") }}');
-            allTables = await res.json();
-            renderTables();
+    function showPaidBill(d) {
+        const methodLabel = { cash:'Cash', card:'Card', bank_transfer:'Bank Transfer', mixed:'Mixed' };
+        const itemRows = d.items.map(function(i) {
+            return '<div style="display:flex; justify-content:space-between; font-size:12px; margin:5px 0;">'
+                + '<span>' + escapeHtml(i.product_name) + ' × ' + i.quantity + '</span>'
+                + '<span>Rs. ' + i.subtotal.toFixed(2) + '</span></div>';
+        }).join('');
+
+        const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
+            + '<div style="font-weight:900; font-size:15px; letter-spacing:1px;">RESTAURANT BYOB</div>'
+            + '<div style="font-size:11px; margin-top:3px;">Order: ' + d.order_number + '</div>'
+            + '<div style="font-size:12px; font-weight:700;">Table ' + d.table_number + (d.table_name ? ' — ' + escapeHtml(d.table_name) : '') + '</div>'
+            + (d.customer_name  ? '<div style="font-size:11px;">Customer: ' + escapeHtml(d.customer_name) + '</div>' : '')
+            + (d.customer_phone ? '<div style="font-size:11px;">Phone: ' + d.customer_phone + '</div>' : '')
+            + '<div style="font-size:10px; color:#666;">' + new Date().toLocaleString() + '</div></div>'
+            + itemRows
+            + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span>Subtotal</span><span>Rs. ' + d.subtotal.toFixed(2) + '</span></div>'
+            + (d.discount_amount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span>Discount</span><span>-Rs. ' + d.discount_amount.toFixed(2) + '</span></div>' : '')
+            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px;"><span>Total</span><span>Rs. ' + d.total.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px; margin-top:5px; color:#555;"><span>Paid (' + (methodLabel[d.payment_method] || d.payment_method) + ')</span><span>Rs. ' + d.amount_paid.toFixed(2) + '</span></div>'
+            + (d.change_amount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Change</span><span>Rs. ' + d.change_amount.toFixed(2) + '</span></div>' : '')
+            + '</div>'
+            + '<div style="text-align:center; margin-top:14px; border:2px solid #16a34a; border-radius:6px; padding:7px; font-weight:900; font-size:15px; color:#16a34a; letter-spacing:2px;">✓ PAID ✓</div>'
+            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#888;">Thank you for dining with us!</div>';
+
+        currentBillContent = html;
+        document.getElementById('billContent').innerHTML = html;
+        openModal('finalBillModal');
+        resetOrder();
+    }
+
+    // ═══════════════════════════════════════════
+    // WAITER BILL
+    // ═══════════════════════════════════════════
+
+    async function printWaiterBill() {
+        if (!currentOrder || !currentOrder.id) return;
+        await saveCustomerInfo();
+        const res  = await fetch('{{ route("pos.order.waiter_bill", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        const data = await res.json();
+        if (!data.success) { toast('Could not generate waiter bill', 'error'); return; }
+
+        const itemRows = data.items.map(function(i) {
+            return '<div style="margin:6px 0; font-size:12px;">'
+                + '<div style="display:flex; justify-content:space-between;">'
+                + '<span style="font-weight:700;">' + escapeHtml(i.product_name) + '</span>'
+                + '<span>Rs. ' + i.subtotal.toFixed(2) + '</span></div>'
+                + '<div style="font-size:10px; color:#555; text-align:right;">' + i.quantity + ' × Rs. ' + i.unit_price.toFixed(2) + '</div>'
+                + (i.kitchen_notes ? '<div style="font-size:10px; color:#888; font-style:italic;">Note: ' + escapeHtml(i.kitchen_notes) + '</div>' : '')
+                + '</div>';
+        }).join('');
+
+        const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
+            + '<div style="font-weight:900; font-size:15px;">RESTAURANT BYOB</div>'
+            + '<div style="font-size:14px; font-weight:800; margin:4px 0;">— WAITER BILL —</div>'
+            + '<div style="font-size:13px; font-weight:700; background:#000; color:#fff; padding:3px 12px; display:inline-block; border-radius:4px; margin:4px 0;">Table ' + data.table_number + '</div>'
+            + '<div style="font-size:11px; margin-top:4px;">Order: ' + data.order_number + '</div>'
+            + (data.customer_name  ? '<div style="font-size:11px;">Customer: ' + escapeHtml(data.customer_name) + '</div>' : '')
+            + (data.customer_phone ? '<div style="font-size:11px;">Phone: ' + data.customer_phone + '</div>' : '')
+            + '<div style="font-size:10px; color:#666;">' + new Date().toLocaleString() + '</div></div>'
+            + itemRows
+            + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Subtotal</span><span>Rs. ' + data.subtotal.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Tax (10%)</span><span>Rs. ' + data.tax_amount.toFixed(2) + '</span></div>'
+            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px;"><span>Total</span><span>Rs. ' + data.total.toFixed(2) + '</span></div>'
+            + '</div>'
+            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#888; border-top:1px dashed #ccc; padding-top:8px;">This is not a payment receipt</div>';
+
+        printReceipt(html);
+        toast('Waiter bill printed', 'success');
+    }
+
+    // ═══════════════════════════════════════════
+    // LIVE BILL
+    // ═══════════════════════════════════════════
+
+    async function toggleLiveBill() {
+        if (!currentOrder || !currentOrder.id) { toast('Select a table first', 'error'); return; }
+        const res  = await fetch('{{ route("pos.order.live_bill", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentOrder.live_bill_enabled = data.live_bill_enabled;
+            updateLiveBillButton();
+            setBottomControls(currentOrder.items && currentOrder.items.length > 0);
+            toast(data.live_bill_enabled ? 'Live bill enabled' : 'Live bill disabled');
         }
+    }
 
-        async function loadProducts(search = '', categoryId = 0) {
-            const params = new URLSearchParams();
-            if (search) params.append('search', search);
-            if (categoryId > 0) params.append('category_id', categoryId);
-
-            const res = await fetch(`{{ route("pos.products") }}?${params}`);
-            allProducts = await res.json();
-            renderProducts();
+    async function confirmLiveBill() {
+        if (!currentOrder || !currentOrder.id || !currentOrder.items || !currentOrder.items.length) {
+            toast('Add items first', 'error'); return;
         }
+        await saveCustomerInfo();
+        const subtotal = currentOrder.subtotal || 0;
+        const discount = calcDiscount(subtotal);
+        const total    = Math.max(0, subtotal - discount);
 
-        function loadCategories() {
-            const container = document.getElementById('categoriesContainer');
-            container.innerHTML = '<button class="category-pill active" data-category="0">All</button>';
+        const itemRows = currentOrder.items.map(function(i) {
+            return '<div style="display:flex; justify-content:space-between; font-size:12px; margin:5px 0;">'
+                + '<span>' + escapeHtml(i.product_name) + ' × ' + i.quantity + '</span>'
+                + '<span>Rs. ' + i.subtotal.toFixed(2) + '</span></div>'
+                + (i.kitchen_notes ? '<div style="font-size:10px; color:#888; text-align:right;">Note: ' + escapeHtml(i.kitchen_notes) + '</div>' : '');
+        }).join('');
 
-            allCategories.forEach(cat => {
-                const btn = document.createElement('button');
-                btn.className = 'category-pill';
-                btn.textContent = cat.name;
-                btn.setAttribute('data-category', cat.id);
-                btn.onclick = () => selectCategory(cat.id);
-                container.appendChild(btn);
+        const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
+            + '<div style="font-weight:900; font-size:15px;">RESTAURANT BYOB</div>'
+            + '<div style="font-size:13px; font-weight:800;">⚡ LIVE BILL</div>'
+            + '<div style="font-size:13px; font-weight:700; margin:4px 0;">Table ' + (currentTable ? currentTable.table_number : '—') + '</div>'
+            + (currentOrder.customer_name ? '<div style="font-size:11px;">Customer: ' + escapeHtml(currentOrder.customer_name) + '</div>' : '')
+            + '<div style="font-size:10px; color:#666;">' + new Date().toLocaleString() + '</div></div>'
+            + itemRows
+            + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
+            + '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Subtotal</span><span>Rs. ' + subtotal.toFixed(2) + '</span></div>'
+            + (discount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px;"><span>Discount</span><span>-Rs. ' + discount.toFixed(2) + '</span></div>' : '')
+            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px;"><span>Total</span><span>Rs. ' + total.toFixed(2) + '</span></div>'
+            + '</div>'
+            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#888;">Live bill — subject to change</div>';
+
+        printReceipt(html);
+        document.getElementById('liveBillPrompt').classList.add('open');
+    }
+
+    function handleLiveBillPrompt(action) {
+        document.getElementById('liveBillPrompt').classList.remove('open');
+        if (action === 'close') {
+            document.getElementById('paymentSection').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('payBtn').scrollIntoView({ behavior: 'smooth' });
+        }
+        // 'continue' → just close prompt, keep adding items
+    }
+
+    // ═══════════════════════════════════════════
+    // KOT
+    // ═══════════════════════════════════════════
+
+    async function printKot() {
+        if (!currentOrder || !currentOrder.id) { toast('No active order', 'error'); return; }
+        const res  = await fetch('{{ route("pos.order.kot", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        const data = await res.json();
+        document.getElementById('kotOrderNumber').textContent = 'Order #' + data.order_number;
+        document.getElementById('kotTableNumber').textContent = 'Table ' + (currentTable ? currentTable.table_number : '—');
+        renderKotItems(data.items);
+        currentKotContent = buildKotHtml(data, currentTable ? currentTable.table_number : '—');
+        openModal('kotModal');
+    }
+
+    async function printKotForTable(orderId) {
+        const res  = await fetch('{{ route("pos.order.kot", ":id") }}'.replace(':id', orderId), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        const data = await res.json();
+        document.getElementById('kotOrderNumber').textContent = 'Order #' + data.order_number;
+        document.getElementById('kotTableNumber').textContent = 'Table ' + (data.table_number || '—');
+        renderKotItems(data.items);
+        currentKotContent = buildKotHtml(data, data.table_number || '—');
+        openModal('kotModal');
+    }
+
+    function renderKotItems(items) {
+        document.getElementById('kotItems').innerHTML = items.map(function(item) {
+            return '<div style="display:flex; justify-content:space-between; align-items:flex-start; padding:8px 0; border-bottom:1px dashed #e2e8f0;">'
+                + '<div>'
+                + '<p style="font-size:14px; font-weight:800; margin:0; color:#0f172a;">' + escapeHtml(item.product_name) + '</p>'
+                + (item.kitchen_notes ? '<p style="font-size:11px; color:#f59e0b; margin:3px 0 0;"><i class="fas fa-note-sticky" style="margin-right:3px;"></i>' + escapeHtml(item.kitchen_notes) + '</p>' : '')
+                + '</div>'
+                + '<span style="font-size:18px; font-weight:900; color:#dc2626; margin-left:12px;">×' + item.quantity + '</span>'
+                + '</div>';
+        }).join('');
+    }
+
+    function buildKotHtml(data, tableNum) {
+        return '<div style="text-align:center; font-weight:900; font-size:16px; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:10px;">KITCHEN ORDER</div>'
+            + '<div style="font-size:13px; font-weight:800;">Order: ' + data.order_number + '</div>'
+            + '<div style="font-size:14px; font-weight:900; margin:4px 0;">Table ' + tableNum + '</div>'
+            + '<div style="font-size:10px; color:#666; margin-bottom:10px;">' + new Date().toLocaleString() + '</div>'
+            + '<div style="border-top:1px solid #000; padding-top:10px;">'
+            + data.items.map(function(i) {
+                return '<div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin:8px 0; border-bottom:1px dashed #ccc; padding-bottom:6px;">'
+                    + '<span>' + escapeHtml(i.product_name) + '</span>'
+                    + '<span style="font-size:16px; font-weight:900;">×' + i.quantity + '</span>'
+                    + '</div>'
+                    + (i.kitchen_notes ? '<div style="font-size:11px; color:#555; margin-top:-4px; margin-bottom:6px;">Note: ' + escapeHtml(i.kitchen_notes) + '</div>' : '');
+            }).join('')
+            + '</div>';
+    }
+
+    function printKotContent() {
+        printReceipt(currentKotContent);
+        closeModal('kotModal');
+    }
+
+    function printBillContent() {
+        printReceipt(currentBillContent);
+    }
+
+    // ═══════════════════════════════════════════
+    // HELD ORDERS
+    // ═══════════════════════════════════════════
+
+    async function holdCurrentOrder() {
+        if (!currentOrder || !currentOrder.id) return;
+        await fetch('{{ route("pos.order.hold", ":id") }}'.replace(':id', currentOrder.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+        toast('Order held');
+        resetOrder();
+        loadHeldOrders();
+    }
+
+    async function loadHeldOrders() {
+        const res    = await fetch('{{ route("pos.held") }}');
+        const orders = await res.json();
+        const badge  = document.getElementById('heldCount');
+        badge.textContent = orders.length;
+        badge.style.background = orders.length > 0 ? '#f59e0b' : '#94a3b8';
+
+        const list = document.getElementById('heldOrdersList');
+        if (orders.length === 0) {
+            list.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">No held orders</p>';
+        } else {
+            list.innerHTML = orders.map(function(o) {
+                return '<div onclick="resumeOrder(' + o.id + ')" '
+                    + 'style="padding:14px; border:1.5px solid #e2e8f0; border-radius:12px; cursor:pointer; transition:all 0.15s; background:#fff;" '
+                    + 'onmouseover="this.style.borderColor=\'#dc2626\'; this.style.background=\'#fef2f2\';" '
+                    + 'onmouseout="this.style.borderColor=\'#e2e8f0\'; this.style.background=\'#fff\';">'
+                    + '<div style="display:flex; justify-content:space-between; align-items:flex-start;">'
+                    + '<div>'
+                    + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0;">' + o.order_number + '</p>'
+                    + '<p style="font-size:12px; color:#64748b; margin:3px 0 0;">Table ' + (o.table_number || '—') + ' &nbsp;&middot;&nbsp; ' + o.items_count + ' item' + (o.items_count !== 1 ? 's' : '') + '</p>'
+                    + '</div>'
+                    + '<span style="font-size:14px; font-weight:900; color:#dc2626;">Rs. ' + o.total.toFixed(2) + '</span>'
+                    + '</div></div>';
+            }).join('');
+        }
+        openModal('heldOrdersModal');
+    }
+
+    async function resumeOrder(orderId) {
+        const res    = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', orderId));
+        currentOrder = await res.json();
+        currentTable = allTables.find(function(t) { return t.id === currentOrder.table_id; }) || null;
+        renderTableView();
+        renderBill();
+        closeModal('heldOrdersModal');
+        await loadTables();
+        toast('Order resumed');
+    }
+
+    // ═══════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════
+
+    function resetOrder() {
+        currentOrder = null;
+        currentTable = null;
+        selectedPaymentMethod = 'cash';
+
+        document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table, then add items</p></div>';
+        document.getElementById('selectedTableLabel').innerHTML = '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin';
+        document.getElementById('customerInfoSection').style.display    = 'none';
+        document.getElementById('activeOrderBanner').style.display      = 'none';
+        document.getElementById('paymentSection').style.display         = 'none';
+        document.getElementById('waiterBillBtn').style.display          = 'none';
+        document.getElementById('payBtn').style.display                 = 'none';
+        document.getElementById('holdBtn').style.display                = 'none';
+        document.getElementById('confirmLiveBillBtn').style.display     = 'none';
+        document.getElementById('customerName').value   = '';
+        document.getElementById('customerPhone').value  = '';
+        document.getElementById('discountType').value   = '';
+        document.getElementById('discountValue').value  = '';
+        document.getElementById('amountPaid').value     = '';
+        document.getElementById('changeDisplay').textContent  = 'Rs. 0.00';
+        document.getElementById('subtotalDisplay').textContent = 'Rs. 0.00';
+        document.getElementById('totalDisplay').textContent    = 'Rs. 0.00';
+        document.querySelectorAll('.pay-method-btn').forEach(function(b) {
+            b.classList.toggle('active', b.dataset.method === 'cash');
+        });
+        document.getElementById('cashSection').style.display = 'flex';
+        document.querySelectorAll('.table-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
+        document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
+        loadTables();
+    }
+
+    function printReceipt(html) {
+        const w = window.open('', '', 'width=400,height=700,toolbar=0,menubar=0,scrollbars=1');
+        w.document.write('<!DOCTYPE html><html><head><style>body{font-family:\'Courier New\',monospace;width:80mm;padding:10px;margin:0;font-size:12px;}</style></head><body>' + html + '</body></html>');
+        w.document.close();
+        w.focus();
+        w.print();
+        setTimeout(function() { w.close(); }, 1200);
+    }
+
+    function openModal(id)  { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+    function showLoading() { document.body.style.cursor = 'wait'; }
+    function hideLoading() { document.body.style.cursor = 'default'; }
+
+    function toast(message, type) {
+        type = type || '';
+        const el = document.getElementById('toast');
+        el.textContent = message;
+        el.className   = 'show' + (type ? ' ' + type : '');
+        clearTimeout(el._t);
+        el._t = setTimeout(function() { el.className = ''; }, 2800);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function escapeJs(str) {
+        if (!str) return '';
+        return String(str).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');
+    }
+
+    function setupEventListeners() {
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const cat = document.querySelector('#categoriesContainer .cat-pill.active');
+            loadProducts(e.target.value, cat ? parseInt(cat.getAttribute('data-category')) : 0);
+        });
+        document.getElementById('discountValue').addEventListener('input', recalcTotal);
+        document.getElementById('discountType').addEventListener('change', recalcTotal);
+
+        // Close modal on backdrop click
+        document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) overlay.classList.remove('open');
             });
-        }
-
-        function renderTables() {
-            const container = document.getElementById('tablesContainer');
-            const filter = document.querySelector('.filter-btn.active')?.getAttribute('data-filter') || 'all';
-
-            container.innerHTML = allTables
-                .filter(t => filter === 'all' || t.section === filter)
-                .map(table => {
-                    const kotBtn = table.has_order ? `<button class="table-kot-btn" onclick="printKotForTable(${table.order_id})"><i class="fas fa-print"></i> KOT</button>` : '';
-                    const tableOrder = table.has_order ? `<div class="text-xs font-medium text-red-600 mt-1">📦 ${table.order_items_count}</div>` : '';
-                    const occupiedTime = table.occupied_at ? ` • ${new Date(table.occupied_at).toLocaleTimeString()}` : '';
-                    return `
-                        <div class="table-card ${table.status} p-3 rounded-lg text-center ${currentTable?.id === table.id ? 'active' : ''}"
-                             onclick="selectTable(${table.id})">
-                            ${kotBtn}
-                            <div class="font-bold text-lg text-gray-900">${table.table_number}</div>
-                            <div class="text-xs text-gray-600">${table.name}</div>
-                            <div class="text-xs text-gray-500">Cap: ${table.capacity}</div>
-                            ${tableOrder}
-                            ${occupiedTime}
-                        </div>
-                    `;
-                }).join('');
-        }
-
-        function renderProducts() {
-            const container = document.getElementById('productsContainer');
-            if (allProducts.length === 0) {
-                container.innerHTML = '<p class="col-span-3 text-center text-gray-500 py-8">No products found</p>';
-                return;
-            }
-
-            container.innerHTML = allProducts.map(product => `
-                <div class="product-card" onclick="addProductToOrder(${product.id}, '${product.name}', ${product.price})">
-                    <div class="h-20 bg-gray-100 rounded-lg flex items-center justify-center mb-2">
-                        <i class="fas fa-utensils text-gray-400 text-2xl"></i>
-                    </div>
-                    <p class="font-medium text-gray-900 text-sm line-clamp-2">${product.name}</p>
-                    <p class="text-red-600 font-bold text-lg mt-1">LKR ${product.price.toFixed(2)}</p>
-                </div>
-            `).join('');
-        }
-
-        async function selectTable(tableId) {
-            const table = allTables.find(t => t.id === tableId);
-            if (!table) return;
-
-            currentTable = table;
-
-            if (table.has_order) {
-                currentOrder = { id: table.order_id };
-                const res = await fetch(`{{ route("pos.order.show", ":id") }}`.replace(':id', table.order_id));
-                const order = await res.json();
-                currentOrder = order;
-            } else {
-                const res = await fetch('{{ route("pos.order.create") }}', {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        table_id: tableId,
-                        order_type: document.getElementById('orderTypeSelect').value
-                    })
-                });
-                const data = await res.json();
-                currentOrder = { id: data.order_id, items: [], subtotal: 0, tax_amount: 0, total: 0, discount_amount: 0, live_bill_enabled: false };
-            }
-
-            renderTableView();
-            renderBill();
-            renderTables();
-        }
-
-        function renderTableView() {
-            document.getElementById('selectedTable').textContent = `Table ${currentTable.table_number} - ${currentTable.name}`;
-        }
-
-        async function addProductToOrder(productId, productName, price) {
-            if (!currentOrder) {
-                alert('Please select a table first');
-                return;
-            }
-
-            const res = await fetch(`{{ route("pos.item.add", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ product_id: productId, quantity: 1 })
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                await loadCurrentOrder();
-                renderBill();
-                if (currentOrder.live_bill_enabled) {
-                    generateLiveBill();
-                }
-            }
-        }
-
-        async function loadCurrentOrder() {
-            if (!currentOrder?.id) return;
-            const res = await fetch(`{{ route("pos.order.show", ":id") }}`.replace(':id', currentOrder.id));
-            currentOrder = await res.json();
-        }
-
-        function renderBill() {
-            if (!currentOrder) {
-                document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
-                return;
-            }
-
-            const itemsHtml = currentOrder.items.map(item => `
-                <div class="bill-item">
-                    <div class="flex-1">
-                        <p class="font-medium text-gray-900">${item.product_name}</p>
-                        <p class="text-xs text-gray-500">LKR ${item.unit_price.toFixed(2)}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="decreaseQty(${item.id})" class="w-6 h-6 border border-gray-300 rounded text-xs hover:bg-gray-100">-</button>
-                        <span class="w-6 text-center text-sm font-medium">${item.quantity}</span>
-                        <button onclick="increaseQty(${item.id})" class="w-6 h-6 border border-gray-300 rounded text-xs hover:bg-gray-100">+</button>
-                        <button onclick="removeItem(${item.id})" class="text-red-600 hover:text-red-700 text-sm ml-2">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                    <div class="w-20 text-right">
-                        <p class="font-medium text-gray-900">LKR ${item.subtotal.toFixed(2)}</p>
-                    </div>
-                </div>
-            `).join('');
-
-            const subtotal = currentOrder.subtotal || 0;
-            const discount = currentOrder.discount_amount || 0;
-            const total = currentOrder.total || 0;
-
-            document.getElementById('billItems').innerHTML = itemsHtml || '<p class="text-center text-gray-500 text-sm py-8">No items in order</p>';
-            const tax = currentOrder.tax_amount || 0;
-            document.getElementById('subtotalDisplay').textContent = `LKR ${subtotal.toFixed(2)}`;
-            if (document.getElementById('taxDisplay')) document.getElementById('taxDisplay').textContent = `LKR ${tax.toFixed(2)}`;
-            document.getElementById('totalDisplay').textContent = `LKR ${total.toFixed(2)}`;
-            if (document.getElementById('paymentTotal')) document.getElementById('paymentTotal').textContent = `LKR ${total.toFixed(2)}`;
-
-            const liveBillBtn = document.getElementById('liveBillBtn');
-            if (liveBillBtn) {
-                if (currentOrder.live_bill_enabled) {
-                    liveBillBtn.innerHTML = '<i class="fas fa-circle text-purple-600 mr-1"></i>Live Bill ON';
-                    liveBillBtn.classList.add('bg-purple-600', 'text-white');
-                    liveBillBtn.classList.remove('bg-purple-100', 'text-purple-700');
-                } else {
-                    liveBillBtn.innerHTML = '<i class="fas fa-circle text-gray-400 mr-1"></i>Live Bill';
-                    liveBillBtn.classList.remove('bg-purple-600', 'text-white');
-                    liveBillBtn.classList.add('bg-purple-100', 'text-purple-700');
-                }
-            }
-        }
-
-        async function increaseQty(itemId) {
-            const item = currentOrder.items.find(i => i.id === itemId);
-            if (!item) return;
-
-            const res = await fetch(`{{ route("pos.item.update", [":id", ":item"]) }}`.replace(':id', currentOrder.id).replace(':item', itemId), {
-                method: 'PUT',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ quantity: item.quantity + 1 })
-            });
-
-            if ((await res.json()).success) {
-                await loadCurrentOrder();
-                renderBill();
-                if (currentOrder.live_bill_enabled) {
-                    generateLiveBill();
-                }
-            }
-        }
-
-        async function decreaseQty(itemId) {
-            const item = currentOrder.items.find(i => i.id === itemId);
-            if (!item || item.quantity <= 1) return;
-
-            const res = await fetch(`{{ route("pos.item.update", [":id", ":item"]) }}`.replace(':id', currentOrder.id).replace(':item', itemId), {
-                method: 'PUT',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ quantity: item.quantity - 1 })
-            });
-
-            if ((await res.json()).success) {
-                await loadCurrentOrder();
-                renderBill();
-                if (currentOrder.live_bill_enabled) {
-                    generateLiveBill();
-                }
-            }
-        }
-
-        async function removeItem(itemId) {
-            const res = await fetch(`{{ route("pos.item.remove", [":id", ":item"]) }}`.replace(':id', currentOrder.id).replace(':item', itemId), {
-                method: 'DELETE',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-            });
-
-            if ((await res.json()).success) {
-                await loadCurrentOrder();
-                renderBill();
-                if (currentOrder.live_bill_enabled) {
-                    generateLiveBill();
-                }
-            }
-        }
-
-        async function toggleLiveBill() {
-            if (!currentOrder?.id) return;
-
-            const res = await fetch(`{{ route("pos.order.live_bill", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                await loadCurrentOrder();
-                renderBill();
-                if (currentOrder.live_bill_enabled) {
-                    generateLiveBill();
-                }
-            }
-        }
-
-        function generateLiveBill() {
-            const discount = currentOrder.discount_amount || 0;
-            const subtotal = currentOrder.subtotal || 0;
-            const total = subtotal - discount;
-
-            const billHtml = `
-                <div style="text-align: center; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 10px;">
-                    <div style="font-weight: bold;">LIVE BILL</div>
-                    <div style="font-size: 12px;">Table ${currentTable.table_number}</div>
-                </div>
-                ${currentOrder.items.map(item => `
-                    <div style="margin: 8px 0; padding: 8px 0; border-bottom: 1px dashed #ccc;">
-                        <div>${item.product_name}</div>
-                        <div style="font-size: 12px;">Qty: ${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</div>
-                        ${item.kitchen_notes ? `<div style="font-size: 11px; color: #666;">Note: ${item.kitchen_notes}</div>` : ''}
-                        <div style="text-align: right; font-weight: bold;">Rs. ${item.subtotal.toFixed(2)}</div>
-                    </div>
-                `).join('')}
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #000; text-align: right;">
-                    <div>Subtotal: Rs. ${subtotal.toFixed(2)}</div>
-                    ${discount > 0 ? `<div>Discount: -Rs. ${discount.toFixed(2)}</div>` : ''}
-                    <div style="font-weight: bold; font-size: 14px;">Total: Rs. ${total.toFixed(2)}</div>
-                </div>
-                <div style="text-align: center; font-size: 11px; margin-top: 10px;">${new Date().toLocaleString()}</div>
-            `;
-
-            const printWindow = window.open('', '', 'width=80mm,height=auto');
-            printWindow.document.write(`<html><head><style>body { font-family: 'Courier New', monospace; width: 80mm; padding: 10px; margin: 0; }</style></head><body>${billHtml}</body></html>`);
-            printWindow.document.close();
-            printWindow.print();
-        }
-
-        async function confirmOrder() {
-            if (!currentOrder?.id || currentOrder.items.length === 0) {
-                alert('Add items to order first');
-                return;
-            }
-
-            const discountType = document.getElementById('discountType').value;
-            const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
-
-            const res = await fetch(`{{ route("pos.order.complete", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    discount_type: discountType || null,
-                    discount_value: discountValue || 0
-                })
-            });
-
-            const data = await res.json();
-            if (data.success) {
-                if (document.getElementById('paymentModal').classList.contains('open')) {
-                    alert(`Payment Complete!
-Total: LKR ${data.total.toFixed(2)}
-Change: LKR ${data.change ? data.change.toFixed(2) : '0.00'}`);
-                    closeModal('paymentModal');
-                }
-                showFinalBill(data);
-            }
-        }
-
-        function showFinalBill(billData) {
-            const billHtml = `
-                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-                    <div style="font-weight: bold; font-size: 14px;">BILL</div>
-                    <div style="font-size: 11px;">Order: ${billData.order_number}</div>
-                    <div style="font-size: 11px;">Table: ${billData.table_number}</div>
-                    ${billData.customer_name ? `<div style="font-size: 11px;">Customer: ${billData.customer_name}</div>` : ''}
-                    ${billData.customer_phone ? `<div style="font-size: 11px;">Phone: ${billData.customer_phone}</div>` : ''}
-                    <div style="font-size: 11px;">${new Date().toLocaleString()}</div>
-                </div>
-
-                ${billData.items.map(item => `
-                    <div style="margin: 8px 0; padding-bottom: 8px; border-bottom: 1px dashed #ccc;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <div>${item.product_name}</div>
-                            <div>Rs. ${item.subtotal.toFixed(2)}</div>
-                        </div>
-                        <div style="font-size: 11px; text-align: right;">Qty: ${item.quantity} × Rs. ${item.unit_price.toFixed(2)}</div>
-                        ${item.kitchen_notes ? `<div style="font-size: 10px; color: #666;">Note: ${item.kitchen_notes}</div>` : ''}
-                    </div>
-                `).join('')}
-
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #000;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span>Subtotal:</span>
-                        <span>Rs. ${billData.subtotal.toFixed(2)}</span>
-                    </div>
-                    ${billData.discount_amount > 0 ? `
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span>Discount:</span>
-                            <span>-Rs. ${billData.discount_amount.toFixed(2)}</span>
-                        </div>
-                    ` : ''}
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-top: 8px;">
-                        <span>Total:</span>
-                        <span>Rs. ${billData.total.toFixed(2)}</span>
-                    </div>
-                </div>
-
-                <div style="text-align: center; font-weight: bold; font-size: 12px; margin-top: 10px; color: #00aa00;">✓ CONFIRMED ✓</div>
-            `;
-
-            document.getElementById('billContent').innerHTML = billHtml;
-            openModal('finalBillModal');
-        }
-
-        function printBill() {
-            if (!currentOrder?.id || currentOrder.items.length === 0) {
-                alert('No items in order');
-                return;
-            }
-
-            const discountType = document.getElementById('discountType').value;
-            const discountValue = parseFloat(document.getElementById('discountValue').value) || 0;
-
-            let discount = 0;
-            if (discountType === 'percentage') {
-                discount = (currentOrder.subtotal * discountValue) / 100;
-            } else if (discountType === 'fixed') {
-                discount = discountValue;
-            }
-
-            const total = currentOrder.subtotal - discount;
-
-            const billHtml = `
-                <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-                    <div style="font-weight: bold; font-size: 14px;">BILL</div>
-                    <div style="font-size: 11px;">Table: ${currentTable.table_number}</div>
-                    <div style="font-size: 11px;">${new Date().toLocaleString()}</div>
-                </div>
-
-                ${currentOrder.items.map(item => `
-                    <div style="margin: 8px 0; padding-bottom: 8px; border-bottom: 1px dashed #ccc;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <div>${item.product_name}</div>
-                            <div>Rs. ${item.subtotal.toFixed(2)}</div>
-                        </div>
-                        <div style="font-size: 11px; text-align: right;">Qty: ${item.quantity}</div>
-                        ${item.kitchen_notes ? `<div style="font-size: 10px; color: #666;">Note: ${item.kitchen_notes}</div>` : ''}
-                    </div>
-                `).join('')}
-
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 2px solid #000;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <span>Subtotal:</span>
-                        <span>Rs. ${currentOrder.subtotal.toFixed(2)}</span>
-                    </div>
-                    ${discount > 0 ? `
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                            <span>Discount:</span>
-                            <span>-Rs. ${discount.toFixed(2)}</span>
-                        </div>
-                    ` : ''}
-                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px;">
-                        <span>Total:</span>
-                        <span>Rs. ${total.toFixed(2)}</span>
-                    </div>
-                </div>
-            `;
-
-            const printWindow = window.open('', '', 'width=80mm,height=auto');
-            printWindow.document.write(`<html><head><style>body { font-family: 'Courier New', monospace; width: 80mm; padding: 10px; margin: 0; }</style></head><body>${billHtml}</body></html>`);
-            printWindow.document.close();
-            printWindow.print();
-        }
-
-        function printFromModal() {
-            window.print();
-        }
-
-        function closeFinalBill() {
-            closeModal('finalBillModal');
-            resetOrder();
-        }
-
-        async function printKot() {
-            if (!currentOrder?.id) return;
-            const res = await fetch(`{{ route("pos.order.kot", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-            });
-
-            const data = await res.json();
-            document.getElementById('kotOrderNumber').textContent = `Order #${data.order_number}`;
-            document.getElementById('kotTableNumber').textContent = `Table #${currentTable.table_number}`;
-            document.getElementById('kotItems').innerHTML = data.items.map(item => `
-                <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
-                    <p style="font-weight: bold; margin: 0;">${item.product_name} x${item.quantity}</p>
-                    ${item.kitchen_notes ? `<p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Note: ${item.kitchen_notes}</p>` : ''}
-                </div>
-            `).join('');
-
-            openModal('kotModal');
-        }
-
-        async function printKotForTable(orderId) {
-            const res = await fetch(`{{ route("pos.order.kot", ":id") }}`.replace(':id', orderId), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-            });
-
-            const data = await res.json();
-            document.getElementById('kotOrderNumber').textContent = `Order #${data.order_number}`;
-            document.getElementById('kotTableNumber').textContent = `Table #${data.table_number || 'N/A'}`;
-            document.getElementById('kotItems').innerHTML = data.items.map(item => `
-                <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #ccc;">
-                    <p style="font-weight: bold; margin: 0;">${item.product_name} x${item.quantity}</p>
-                    ${item.kitchen_notes ? `<p style="font-size: 12px; color: #666; margin: 5px 0 0 0;">Note: ${item.kitchen_notes}</p>` : ''}
-                </div>
-            `).join('');
-
-            openModal('kotModal');
-        }
-
-        function printKotFromModal() {
-            window.print();
-        }
-
-        async function holdCurrentOrder() {
-            if (!currentOrder?.id) return;
-            const res = await fetch(`{{ route("pos.order.hold", ":id") }}`.replace(':id', currentOrder.id), {
-                method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-            });
-
-            if ((await res.json()).success) {
-                resetOrder();
-                loadHeldOrders();
-            }
-        }
-
-        async function loadHeldOrders() {
-            const res = await fetch('{{ route("pos.held") }}');
-            const orders = await res.json();
-            document.getElementById('heldCount').textContent = orders.length;
-
-            const list = document.getElementById('heldOrdersList');
-            if (orders.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-500 py-8">No held orders</p>';
-                return;
-            }
-
-            list.innerHTML = orders.map(order => `
-                <div class="p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50" onclick="resumeOrder(${order.id})">
-                    <p class="font-medium text-gray-900">${order.order_number}</p>
-                    <p class="text-sm text-gray-600">Table: ${order.table_number || 'N/A'} | Items: ${order.items_count}</p>
-                    <p class="text-sm font-medium text-red-600 mt-1">LKR ${order.total.toFixed(2)}</p>
-                </div>
-            `).join('');
-        }
-
-        async function resumeOrder(orderId) {
-            currentOrder = { id: orderId };
-            const res = await fetch(`{{ route("pos.order.show", ":id") }}`.replace(':id', orderId));
-            const order = await res.json();
-            currentOrder = order;
-
-            if (order.table_id) {
-                currentTable = allTables.find(t => t.id === order.table_id);
-                if (currentTable) renderTableView();
-            }
-
-            renderBill();
-            closeModal('heldOrdersModal');
-            await loadTables();
-            renderTables();
-        }
-
-        function selectCategory(categoryId) {
-            document.querySelectorAll('.category-pill').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`[data-category="${categoryId}"]`).classList.add('active');
-
-            const search = document.getElementById('searchInput').value;
-            loadProducts(search, categoryId);
-        }
-
-        function filterTables(section) {
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active', 'bg-red-100', 'text-red-700'));
-            event.target.classList.add('active', 'bg-red-100', 'text-red-700');
-            renderTables();
-        }
-
-        function setupEventListeners() {
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                const categoryId = document.querySelector('.category-pill.active')?.getAttribute('data-category') || 0;
-                loadProducts(e.target.value, categoryId);
-            });
-
-            document.getElementById('discountValue').addEventListener('input', () => {
-                renderBill();
-            });
-
-            document.getElementById('discountType').addEventListener('change', () => {
-                renderBill();
-            });
-
-            document.getElementById('amountPaid').addEventListener('input', (e) => {
-                const total = parseFloat(document.getElementById('paymentTotal').textContent.replace('LKR ', '')) || 0;
-                const change = parseFloat(e.target.value) - total;
-                document.getElementById('changeDisplay').textContent = `LKR ${Math.max(0, change).toFixed(2)}`;
-            });
-        }
-
-        function resetOrder() {
-            currentOrder = null;
-            currentTable = null;
-            document.getElementById('billItems').innerHTML = '<p class="text-center text-gray-500 text-sm py-8">Select items to add to order</p>';
-            document.getElementById('selectedTable').textContent = 'No table selected';
-            document.getElementById('discountType').value = '';
-            document.getElementById('discountValue').value = '0';
-            loadTables();
-            renderTables();
-        }
-
-        function openModal(modalId) {
-            document.getElementById(modalId).classList.add('open');
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('open');
-        }
-
-        window.addEventListener('load', initPos);
-    </script>
+        });
+    }
+
+    window.addEventListener('load', initPos);
+</script>
 </body>
 </html>

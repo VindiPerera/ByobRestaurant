@@ -14,30 +14,67 @@
             background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
             box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
         }
+        .navbar-logo {
+            height: 52px;
+            width: auto;
+            max-width: 200px;
+            object-fit: contain;
+            border-radius: 8px;
+            mix-blend-mode: multiply;
+            background: transparent;
+        }
         .sidebar {
             background: white;
             box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
         }
+        /* Base module card */
         .module-card {
-            background: #ffefea;
-            border: 1px solid #e5e7eb;
-            transition: all 0.3s ease;
+            border: 1.5px solid transparent;
+            transition: all 0.28s ease;
+            position: relative;
+            overflow: hidden;
         }
+        .module-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.28s;
+            background: rgba(0,0,0,0.04);
+        }
+        .module-card:hover::before { opacity: 1; }
         .module-card:hover {
-            box-shadow: 0 10px 30px rgba(220, 38, 38, 0.1);
-            transform: translateY(-4px);
-            border-color: #dc2626;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+            transform: translateY(-5px);
+            border-color: rgba(0,0,0,0.12);
         }
+        /* Pastel colour palette — one per card slot (cycles via nth-child) */
+        .module-card:nth-child(1)  { background: linear-gradient(135deg, #fde8e8, #fecaca); }
+        .module-card:nth-child(2)  { background: linear-gradient(135deg, #e8f4fd, #bfdbfe); }
+        .module-card:nth-child(3)  { background: linear-gradient(135deg, #edfcf2, #bbf7d0); }
+        .module-card:nth-child(4)  { background: linear-gradient(135deg, #fef9e8, #fde68a); }
+        .module-card:nth-child(5)  { background: linear-gradient(135deg, #f3e8fd, #e9d5ff); }
+        .module-card:nth-child(6)  { background: linear-gradient(135deg, #e8fdf9, #99f6e4); }
+        .module-card:nth-child(7)  { background: linear-gradient(135deg, #fdf0e8, #fed7aa); }
+        .module-card:nth-child(8)  { background: linear-gradient(135deg, #fde8f4, #fbcfe8); }
+        .module-card:nth-child(9)  { background: linear-gradient(135deg, #e8eafd, #c7d2fe); }
+        .module-card:nth-child(10) { background: linear-gradient(135deg, #f0fde8, #d9f99d); }
+        .module-card:nth-child(11) { background: linear-gradient(135deg, #fde8e8, #fecaca); }
+        .module-card:nth-child(12) { background: linear-gradient(135deg, #e8f4fd, #bfdbfe); }
+
+        /* Module icon inherits tint from card */
         .module-icon {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+            background: rgba(255,255,255,0.55);
+            backdrop-filter: blur(4px);
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            color: #991b1b;
+            font-size: 22px;
+            color: #374151;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
         .badge-role {
             background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
@@ -53,9 +90,8 @@
     <!-- Navbar -->
     <nav class="navbar fixed top-0 left-0 right-0 z-50">
         <div class="flex items-center justify-between px-6 py-4">
-            <div class="flex items-center space-x-3">
-                <h1 class="text-2xl font-bold text-white">Piznek</h1>
-                <span class="hidden sm:block text-red-100 text-sm">Restaurant Management System</span>
+            <div class="flex items-center">
+                <img src="{{ asset('images/jaan_logo.jpg') }}" alt="Piznek Logo" class="navbar-logo">
             </div>
 
             <div class="flex items-center space-x-4">
