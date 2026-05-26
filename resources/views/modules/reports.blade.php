@@ -10,9 +10,22 @@
             <h1 class="text-4xl font-bold text-gray-900">Reports</h1>
             <p class="text-gray-600 mt-2">Business analytics and sales overview</p>
         </div>
-        <span class="text-sm text-gray-500 font-medium">
-            <i class="fas fa-clock mr-1"></i>As of {{ now()->format('d M Y, H:i') }}
-        </span>
+        <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-sm text-gray-500 font-medium">
+                <i class="fas fa-clock mr-1"></i>As of {{ now()->format('d M Y, H:i') }}
+            </span>
+            <div class="flex gap-2">
+                <a href="{{ route('reports.export.sales') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">
+                    <i class="fas fa-download"></i> Sales PDF
+                </a>
+                <a href="{{ route('reports.export.products') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm font-medium">
+                    <i class="fas fa-download"></i> Products PDF
+                </a>
+                <a href="{{ route('reports.export.combined') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
+                    <i class="fas fa-download"></i> Complete PDF
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- ── SUMMARY CARDS (6 cards) ── -->

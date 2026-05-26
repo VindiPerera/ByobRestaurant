@@ -13,10 +13,18 @@ use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\WastageController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\QrMenuController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
 });
+
+// Public QR Menu Routes (no auth required)
+Route::get('/menu/scan', [QrMenuController::class, 'viewMenu'])->name('menu.view');
+Route::get('/api/menu/category/{categoryId}', [QrMenuController::class, 'getProductsByCategory']);
+Route::get('/qr-code/generate', [QrMenuController::class, 'generateQr'])->name('qr.generate');
+Route::get('/qr-code/download', [QrMenuController::class, 'downloadQr'])->name('qr.download');
+Route::get('/qr-code/pdf', [QrMenuController::class, 'downloadQrPdf'])->name('qr.pdf');
 
 // Auth Routes
 Route::get('/login', [LoginController::class, 'show'])->name('login');
@@ -25,6 +33,11 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // QR Menu Management (Admin)
+    Route::get('/qr-menu/admin', function () {
+        return view('qr-menu.qr-admin');
+    })->name('qr.admin');
 
     // Customer CRUD routes
     Route::resource('customers', CustomerController::class);
@@ -79,6 +92,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/inventory/adjustments', [StockAdjustmentController::class, 'store'])->name('stock.adjustments.store');
 
     Route::get('/reports', [ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export/sales-pdf', [ReportsController::class, 'exportSalesPdf'])->name('reports.export.sales');
+    Route::get('/reports/export/products-pdf', [ReportsController::class, 'exportProductsPdf'])->name('reports.export.products');
+    Route::get('/reports/export/combined-pdf', [ReportsController::class, 'exportCombinedPdf'])->name('reports.export.combined');
 
     Route::get('/settings', function () {
         $modules = auth()->user()->role->modules()->get();
