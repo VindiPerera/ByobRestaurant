@@ -11,7 +11,7 @@
         body { background: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; height: 100vh; overflow: hidden; }
 
         /* ── Layout ── */
-        .pos-grid { display: grid; grid-template-columns: 270px 1fr 380px; height: 100vh; }
+        .pos-grid { display: grid; grid-template-columns: 320px 1fr 440px; height: 100vh; }
 
         /* ── Panels ── */
         .tables-panel  { background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
