@@ -25,25 +25,6 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="color" class="block text-sm font-semibold text-gray-900 mb-2">Color</label>
-                        <input type="color" name="color" id="color" value="{{ old('color', '#dc2626') }}"
-                            class="w-full h-11 px-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('color') ? 'border-red-600' : '' }}">
-                        @error('color')
-                            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
-                        <label for="icon" class="block text-sm font-semibold text-gray-900 mb-2">Icon (Font Awesome)</label>
-                        <input type="text" name="icon" id="icon" value="{{ old('icon', 'utensils') }}"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('icon') ? 'border-red-600' : '' }}"
-                            placeholder="utensils">
-                        @error('icon')
-                            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
-                        @enderror
-                    </div>
-
-                    <div>
                         <label for="sort_order" class="block text-sm font-semibold text-gray-900 mb-2">Sort Order</label>
                         <input type="number" name="sort_order" id="sort_order" value="{{ old('sort_order', 0) }}" min="0"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('sort_order') ? 'border-red-600' : '' }}"
