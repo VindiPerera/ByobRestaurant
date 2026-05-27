@@ -111,6 +111,15 @@
             box-shadow: 0 24px 64px rgba(0,0,0,0.2);
         }
 
+        /* ── Active order banner ── */
+        #activeOrderBanner {
+            align-items: center;
+            justify-content: space-between;
+        }
+        #activeOrderBanner[style*="display:flex"] {
+            display: flex !important;
+        }
+
         /* ── Live bill prompt ── */
         .live-bill-overlay {
             display: none; position: fixed; inset: 0;
@@ -186,11 +195,15 @@
                 <span style="font-size:10px; font-weight:600; color:#d97706;"><span class="table-status-dot dot-reserved"></span>Reserved</span>
             </div>
             <!-- Filter tabs -->
-            <div style="display:flex; gap:6px;">
+            <div style="display:flex; gap:6px; margin-bottom:10px;">
                 <button onclick="filterTables('all', this)" class="cat-pill active" style="padding:4px 12px;">All</button>
                 <button onclick="filterTables('main', this)" class="cat-pill" style="padding:4px 12px;">Main</button>
                 <button onclick="filterTables('vip', this)" class="cat-pill" style="padding:4px 12px;">VIP</button>
             </div>
+            <!-- Takeaway Order Button -->
+            <button onclick="startTakeawayOrder()" class="btn-primary" style="width:100%; padding:10px; font-size:12px; font-weight:700;">
+                <i class="fas fa-shopping-bag" style="margin-right:6px;"></i>Takeaway Order
+            </button>
         </div>
 
         <!-- Tables list -->
@@ -230,11 +243,14 @@
 
         <!-- Active order indicator -->
         <div id="activeOrderBanner" style="display:none; background:linear-gradient(90deg,#fef2f2,#fff1f1); border-bottom:1px solid #fecaca; padding:8px 16px; flex-shrink:0;">
-            <span style="font-size:12px; font-weight:600; color:#dc2626;">
+            <span style="font-size:12px; font-weight:600; color:#dc2626; flex:1;">
                 <i class="fas fa-circle-dot" style="margin-right:4px;"></i>
                 <span id="activeOrderText">Adding to Table —</span>
                 <span style="color:#374151; font-weight:500; margin-left:4px;">tap a product to add it</span>
             </span>
+            <button id="closeOrderBtn" onclick="closeCurrentOrder(); event.stopPropagation();" style="background:none; border:none; color:#dc2626; cursor:pointer; font-size:18px; padding:0 8px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0;">
+                <i class="fas fa-times-circle" style="font-size:18px;"></i>
+            </button>
         </div>
 
         <!-- Products grid -->
@@ -357,11 +373,8 @@
             <!-- Action buttons -->
             <div id="orderControls" style="display:flex; flex-direction:column; gap:6px;">
 
-                <!-- Row 1: Live Bill + KOT -->
+                <!-- Row 1: KOT -->
                 <div style="display:flex; gap:6px;">
-                    <button onclick="toggleLiveBill()" id="liveBillBtn" class="btn-purple" style="flex:1; padding:8px 6px; font-size:11px;">
-                        <i class="fas fa-circle" id="liveBillIcon" style="font-size:8px; margin-right:4px; color:rgba(255,255,255,0.5);"></i>Live Bill
-                    </button>
                     <button onclick="printKot()" class="btn-orange" style="flex:1; padding:8px 6px; font-size:11px;">
                         <i class="fas fa-receipt" style="margin-right:3px;"></i>KOT
                     </button>
@@ -369,7 +382,7 @@
 
                 <!-- Row 2: Waiter Bill + Pay (side by side) -->
                 <div id="waiterPayRow" style="display:none; gap:6px; display:flex;">
-                    <button onclick="printWaiterBill()" id="waiterBillBtn" class="btn-blue" style="flex:1; padding:8px 6px; font-size:11px;">
+                    <button onclick="printBill()" id="waiterBillBtn" class="btn-blue" style="flex:1; padding:8px 6px; font-size:11px;">
                         <i class="fas fa-file-invoice" style="margin-right:3px;"></i>Bill
                     </button>
                     <button onclick="initiatePayment()" id="payBtn" class="btn-green" style="flex:1; padding:8px 6px; font-size:11px;">
@@ -377,12 +390,7 @@
                     </button>
                 </div>
 
-                <!-- Row 3: Confirm Live Bill (shown in live bill mode with items) -->
-                <button onclick="confirmLiveBill()" id="confirmLiveBillBtn" class="btn-primary" style="display:none; width:100%; padding:8px; font-size:11px;">
-                    <i class="fas fa-bolt" style="margin-right:3px;"></i>Confirm &amp; Print
-                </button>
-
-                <!-- Row 4: Hold -->
+                <!-- Row 3: Hold -->
                 <button onclick="holdCurrentOrder()" id="holdBtn" class="btn-secondary" style="display:none; width:100%; padding:8px; font-size:11px;">
                     <i class="fas fa-pause" style="margin-right:3px;"></i>Hold Order
                 </button>
@@ -443,29 +451,6 @@
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════
-     LIVE BILL: Close/Continue Prompt
-══════════════════════════════════════════════════ -->
-<div id="liveBillPrompt" class="live-bill-overlay">
-    <div style="background:#fff; border-radius:20px; padding:28px; max-width:340px; width:90%; box-shadow:0 32px 80px rgba(0,0,0,0.25);">
-        <div style="text-align:center; margin-bottom:20px;">
-            <div style="width:56px; height:56px; background:#f0fdf4; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px;">
-                <i class="fas fa-check" style="font-size:22px; color:#16a34a;"></i>
-            </div>
-            <h3 style="font-size:17px; font-weight:800; color:#0f172a; margin:0 0 6px;">Live Bill Printed!</h3>
-            <p style="font-size:13px; color:#64748b; margin:0;">What would you like to do next?</p>
-        </div>
-        <div style="display:flex; gap:10px;">
-            <button onclick="handleLiveBillPrompt('close')" class="btn-primary" style="flex:1; padding:12px;">
-                <i class="fas fa-times-circle" style="margin-right:4px;"></i>Close Table
-            </button>
-            <button onclick="handleLiveBillPrompt('continue')" class="btn-secondary" style="flex:1; padding:12px;">
-                <i class="fas fa-plus-circle" style="margin-right:4px;"></i>Add More
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Toast notification -->
 <div id="toast"></div>
 
@@ -495,10 +480,16 @@
     // ═══════════════════════════════════════════
 
     async function loadTables() {
-        const res = await fetch('{{ route("pos.tables") }}');
-        allTables = await res.json();
-        renderTables();
-        updateTableStatusBadge();
+        try {
+            const res = await fetch('{{ route("pos.tables") }}');
+            if (!res.ok) { toast('Failed to load tables', 'error'); return; }
+            allTables = await res.json();
+            renderTables();
+            updateTableStatusBadge();
+        } catch (e) {
+            console.error('Load tables error:', e);
+            toast('Error loading tables', 'error');
+        }
     }
 
     function updateTableStatusBadge() {
@@ -582,26 +573,40 @@
     }
 
     async function viewTableOrder(orderId) {
-        showLoading();
-        const res   = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', orderId));
-        const order = await res.json();
-        currentOrder = order;
-        currentTable = allTables.find(function(t) { return t.id === order.table_id; }) || null;
-        // Collapse all expanded cards, mark selected
-        document.querySelectorAll('.table-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
-        document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
-        if (currentTable) {
-            const card = document.getElementById('tc-' + currentTable.id);
-            if (card) card.classList.add('selected');
+        try {
+            showLoading();
+            const res   = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', orderId));
+            if (!res.ok) { toast('Failed to load order', 'error'); hideLoading(); return; }
+            const order = await res.json();
+            currentOrder = order;
+            currentTable = allTables.find(function(t) { return t.id === order.table_id; }) || null;
+            // Collapse all expanded cards, mark selected
+            document.querySelectorAll('.table-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
+            document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
+            if (currentTable) {
+                const card = document.getElementById('tc-' + currentTable.id);
+                if (card) card.classList.add('selected');
+            }
+            renderTableView();
+            renderBill();
+            hideLoading();
+        } catch (e) {
+            console.error('View order error:', e);
+            hideLoading();
+            toast('Error loading order', 'error');
         }
-        renderTableView();
-        renderBill();
-        hideLoading();
     }
 
     async function startNewOrder(tableId) {
         const table = allTables.find(function(t) { return t.id === tableId; });
         if (!table) return;
+
+        // If clicking the same table that's already selected and no items, deselect it
+        if (currentTable && currentTable.id === tableId && (!currentOrder || !currentOrder.items || currentOrder.items.length === 0)) {
+            resetOrder();
+            await loadTables();
+            return;
+        }
 
         showLoading();
         currentTable = table;
@@ -610,9 +615,14 @@
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 table_id: tableId,
-                order_type: document.getElementById('orderTypeSelect').value
+                order_type: 'dine_in'
             })
         });
+        if (!res.ok) {
+            hideLoading();
+            toast('Failed to open table', 'error');
+            return;
+        }
         const data = await res.json();
         currentOrder = {
             id: data.order_id, order_number: data.order_number,
@@ -628,19 +638,69 @@
         toast('Table ' + table.table_number + ' opened', 'success');
     }
 
+    async function startTakeawayOrder(forceType) {
+        showLoading();
+        // Deselect any previously selected table
+        document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
+        currentTable = null;
+
+        let orderType = 'takeaway';
+        if (typeof forceType === 'string') {
+            orderType = forceType;
+        }
+
+        const selectEl = document.getElementById('orderTypeSelect');
+        if (selectEl && selectEl.value !== orderType) {
+            selectEl.value = orderType;
+        }
+
+        const res  = await fetch('{{ route("pos.order.create") }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                order_type: orderType
+            })
+        });
+        if (!res.ok) {
+            hideLoading();
+            toast('Failed to create ' + orderType + ' order', 'error');
+            return false;
+        }
+        const data = await res.json();
+        currentOrder = {
+            id: data.order_id, order_number: data.order_number,
+            items: [], subtotal: 0, total: 0,
+            discount_amount: 0, live_bill_enabled: false,
+            customer_name: null, customer_phone: null,
+            table_id: null,
+            order_type: orderType
+        };
+        renderTableView();
+        renderBill();
+        hideLoading();
+        toast(orderType.charAt(0).toUpperCase() + orderType.slice(1) + ' order started — start adding items', 'success');
+        return true;
+    }
+
     // ═══════════════════════════════════════════
     // PRODUCTS
     // ═══════════════════════════════════════════
 
     async function loadProducts(search, categoryId) {
-        search     = search     || '';
-        categoryId = categoryId || 0;
-        const params = new URLSearchParams();
-        if (search)         params.append('search', search);
-        if (categoryId > 0) params.append('category_id', categoryId);
-        const res = await fetch('{{ route("pos.products") }}?' + params);
-        allProducts = await res.json();
-        renderProducts();
+        try {
+            search     = search     || '';
+            categoryId = categoryId || 0;
+            const params = new URLSearchParams();
+            if (search)         params.append('search', search);
+            if (categoryId > 0) params.append('category_id', categoryId);
+            const res = await fetch('{{ route("pos.products") }}?' + params);
+            if (!res.ok) { toast('Failed to load products', 'error'); return; }
+            allProducts = await res.json();
+            renderProducts();
+        } catch (e) {
+            console.error('Load products error:', e);
+            toast('Error loading products', 'error');
+        }
     }
 
     function loadCategories() {
@@ -693,8 +753,15 @@
 
     async function addProductToOrder(productId, productName, price) {
         if (!currentOrder || !currentOrder.id) {
-            toast('Please select a table first', 'error');
-            return;
+            const selectEl = document.getElementById('orderTypeSelect');
+            const orderType = selectEl ? selectEl.value : 'dine_in';
+            if (orderType === 'takeaway' || orderType === 'delivery') {
+                const created = await startTakeawayOrder(orderType);
+                if (!created) return;
+            } else {
+                toast('Please select a table or create a takeaway order first', 'error');
+                return;
+            }
         }
         // Optimistic update
         const existing = currentOrder.items.find(function(i) { return i.product_id === productId; });
@@ -720,10 +787,15 @@
     }
 
     async function syncOrder() {
-        if (!currentOrder || !currentOrder.id) return;
-        const res = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', currentOrder.id));
-        currentOrder = await res.json();
-        renderBill();
+        try {
+            if (!currentOrder || !currentOrder.id) return;
+            const res = await fetch('{{ route("pos.order.show", ":id") }}'.replace(':id', currentOrder.id));
+            if (!res.ok) return;
+            currentOrder = await res.json();
+            renderBill();
+        } catch (e) {
+            console.error('Sync order error:', e);
+        }
     }
 
     async function increaseQty(itemId) {
@@ -780,13 +852,27 @@
     // ═══════════════════════════════════════════
 
     function renderTableView() {
-        if (!currentTable) {
+        if (!currentTable && !currentOrder) {
             document.getElementById('selectedTableLabel').innerHTML =
-                '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin';
+                '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table or create takeaway order';
             document.getElementById('customerInfoToggle').style.display = 'none';
             document.getElementById('activeOrderBanner').style.display   = 'none';
             return;
         }
+
+        if (!currentTable && currentOrder) {
+            const displayType = currentOrder.order_type ? 
+                                currentOrder.order_type.charAt(0).toUpperCase() + currentOrder.order_type.slice(1) : 
+                                'Takeaway';
+                                
+            document.getElementById('selectedTableLabel').innerHTML =
+                '🛍 <strong>' + displayType + ' Order</strong> — ' + (currentOrder.order_number || '—');
+            document.getElementById('customerInfoToggle').style.display = 'flex';
+            document.getElementById('activeOrderBanner').style.display   = 'flex';
+            document.getElementById('activeOrderText').textContent = displayType + ' — adding items';
+            return;
+        }
+
         const sectionLabel = currentTable.section === 'vip' ? '🟣 VIP' : '🍽';
         document.getElementById('selectedTableLabel').innerHTML =
             sectionLabel + ' <strong>Table ' + currentTable.table_number + '</strong> — ' + escapeHtml(currentTable.name);
@@ -802,12 +888,13 @@
 
     function renderBill() {
         if (!currentOrder || !currentOrder.items) {
-            document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table, then add items</p></div>';
+            document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table or create takeaway order</p></div>';
             setBottomControls(false);
+            updateCloseButtonVisibility(false);
             return;
         }
 
-        const hasItems = currentOrder.items.length > 0;
+        const hasItems = currentOrder.items && currentOrder.items.length > 0;
 
         if (!hasItems) {
             document.getElementById('billItems').innerHTML =
@@ -864,17 +951,22 @@
         document.getElementById('totalDisplay').textContent    = 'Rs. ' + total.toFixed(2);
 
         setBottomControls(hasItems);
-        updateLiveBillButton();
+        updateCloseButtonVisibility(hasItems);
         updateChange();
         scrollBillToBottom();
     }
 
+    function updateCloseButtonVisibility(hasItems) {
+        const closeBtn = document.getElementById('closeOrderBtn');
+        if (closeBtn) {
+            closeBtn.style.display = hasItems ? 'none' : 'flex';
+        }
+    }
+
     function setBottomControls(hasItems) {
-        const liveBillOn = currentOrder && currentOrder.live_bill_enabled;
         document.getElementById('paymentSection').style.display     = hasItems ? 'block' : 'none';
         document.getElementById('waiterPayRow').style.display       = hasItems ? 'flex' : 'none';
         document.getElementById('holdBtn').style.display            = hasItems ? 'block' : 'none';
-        document.getElementById('confirmLiveBillBtn').style.display = (hasItems && liveBillOn) ? 'block' : 'none';
     }
 
     function toggleCustomerInfo() {
@@ -888,17 +980,6 @@
         chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
     }
 
-    function updateLiveBillButton() {
-        const btn = document.getElementById('liveBillBtn');
-        const on  = currentOrder && currentOrder.live_bill_enabled;
-        if (on) {
-            btn.style.background = '#5b21b6';
-            btn.innerHTML = '<i class="fas fa-circle" style="font-size:9px; margin-right:5px; color:#a78bfa;"></i>Live Bill ON';
-        } else {
-            btn.style.background = '#7c3aed';
-            btn.innerHTML = '<i class="fas fa-circle" style="font-size:9px; margin-right:5px; color:rgba(255,255,255,0.4);"></i>Live Bill';
-        }
-    }
 
     function scrollBillToBottom() {
         const wrapper = document.getElementById('billItemsWrapper');
@@ -987,11 +1068,16 @@
                 discount_value: parseFloat(document.getElementById('discountValue').value) || 0,
             })
         });
+        if (!res.ok) {
+            toast('Payment failed — server error', 'error');
+            return;
+        }
         const data = await res.json();
         if (data.success) {
             showPaidBill(data);
+            printBillContent();
             await loadTables();
-            toast('Payment received — table closed!', 'success');
+            toast('Payment received & bill printed — table closed!', 'success');
         } else {
             toast(data.error || 'Payment failed', 'error');
         }
@@ -1030,10 +1116,10 @@
     }
 
     // ═══════════════════════════════════════════
-    // WAITER BILL
+    // BILL
     // ═══════════════════════════════════════════
 
-    async function printWaiterBill() {
+    async function printBill() {
         if (!currentOrder || !currentOrder.id) return;
         await saveCustomerInfo();
         const res  = await fetch('{{ route("pos.order.waiter_bill", ":id") }}'.replace(':id', currentOrder.id), {
@@ -1041,7 +1127,7 @@
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
         });
         const data = await res.json();
-        if (!data.success) { toast('Could not generate waiter bill', 'error'); return; }
+        if (!data.success) { toast('Could not generate bill', 'error'); return; }
 
         const itemRows = data.items.map(function(i) {
             return '<div style="margin:6px 0; font-size:12px;">'
@@ -1072,67 +1158,6 @@
         toast('Waiter bill printed', 'success');
     }
 
-    // ═══════════════════════════════════════════
-    // LIVE BILL
-    // ═══════════════════════════════════════════
-
-    async function toggleLiveBill() {
-        if (!currentOrder || !currentOrder.id) { toast('Select a table first', 'error'); return; }
-        const res  = await fetch('{{ route("pos.order.live_bill", ":id") }}'.replace(':id', currentOrder.id), {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-        });
-        const data = await res.json();
-        if (data.success) {
-            currentOrder.live_bill_enabled = data.live_bill_enabled;
-            updateLiveBillButton();
-            setBottomControls(currentOrder.items && currentOrder.items.length > 0);
-            toast(data.live_bill_enabled ? 'Live bill enabled' : 'Live bill disabled');
-        }
-    }
-
-    async function confirmLiveBill() {
-        if (!currentOrder || !currentOrder.id || !currentOrder.items || !currentOrder.items.length) {
-            toast('Add items first', 'error'); return;
-        }
-        await saveCustomerInfo();
-        const subtotal = currentOrder.subtotal || 0;
-        const discount = calcDiscount(subtotal);
-        const total    = Math.max(0, subtotal - discount);
-
-        const itemRows = currentOrder.items.map(function(i) {
-            return '<div style="display:flex; justify-content:space-between; font-size:12px; margin:5px 0;">'
-                + '<span>' + escapeHtml(i.product_name) + ' × ' + i.quantity + '</span>'
-                + '<span>Rs. ' + i.subtotal.toFixed(2) + '</span></div>'
-                + (i.kitchen_notes ? '<div style="font-size:10px; color:#888; text-align:right;">Note: ' + escapeHtml(i.kitchen_notes) + '</div>' : '');
-        }).join('');
-
-        const html = '<div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:12px;">'
-            + '<div style="font-weight:900; font-size:15px; color:#000;">RESTAURANT BYOB</div>'
-            + '<div style="font-size:13px; font-weight:800; color:#000;">⚡ LIVE BILL</div>'
-            + '<div style="font-size:13px; font-weight:700; margin:4px 0; color:#000;">Table ' + (currentTable ? currentTable.table_number : '—') + '</div>'
-            + (currentOrder.customer_name ? '<div style="font-size:11px; color:#000;">Customer: ' + escapeHtml(currentOrder.customer_name) + '</div>' : '')
-            + '<div style="font-size:10px; color:#000;">' + new Date().toLocaleString() + '</div></div>'
-            + itemRows
-            + '<div style="border-top:2px solid #000; margin-top:10px; padding-top:10px;">'
-            + '<div style="display:flex; justify-content:space-between; font-size:12px; color:#000;"><span>Subtotal</span><span>Rs. ' + subtotal.toFixed(2) + '</span></div>'
-            + (discount > 0 ? '<div style="display:flex; justify-content:space-between; font-size:12px; color:#000;"><span>Discount</span><span>-Rs. ' + discount.toFixed(2) + '</span></div>' : '')
-            + '<div style="display:flex; justify-content:space-between; font-weight:900; font-size:14px; margin-top:5px; color:#000;"><span>Total</span><span>Rs. ' + total.toFixed(2) + '</span></div>'
-            + '</div>'
-            + '<div style="text-align:center; font-size:10px; margin-top:10px; color:#000;">Live bill — subject to change</div>';
-
-        printReceipt(html);
-        document.getElementById('liveBillPrompt').classList.add('open');
-    }
-
-    function handleLiveBillPrompt(action) {
-        document.getElementById('liveBillPrompt').classList.remove('open');
-        if (action === 'close') {
-            document.getElementById('paymentSection').scrollIntoView({ behavior: 'smooth' });
-            document.getElementById('payBtn').scrollIntoView({ behavior: 'smooth' });
-        }
-        // 'continue' → just close prompt, keep adding items
-    }
 
     // ═══════════════════════════════════════════
     // KOT
@@ -1218,31 +1243,37 @@
     }
 
     async function loadHeldOrders() {
-        const res    = await fetch('{{ route("pos.held") }}');
-        const orders = await res.json();
-        const badge  = document.getElementById('heldCount');
-        badge.textContent = orders.length;
-        badge.style.background = orders.length > 0 ? '#f59e0b' : '#94a3b8';
+        try {
+            const res    = await fetch('{{ route("pos.held") }}');
+            if (!res.ok) { toast('Failed to load held orders', 'error'); return; }
+            const orders = await res.json();
+            const badge  = document.getElementById('heldCount');
+            badge.textContent = orders.length;
+            badge.style.background = orders.length > 0 ? '#f59e0b' : '#94a3b8';
 
-        const list = document.getElementById('heldOrdersList');
-        if (orders.length === 0) {
-            list.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">No held orders</p>';
-        } else {
-            list.innerHTML = orders.map(function(o) {
-                return '<div onclick="resumeOrder(' + o.id + ')" '
-                    + 'style="padding:14px; border:1.5px solid #e2e8f0; border-radius:12px; cursor:pointer; transition:all 0.15s; background:#fff;" '
-                    + 'onmouseover="this.style.borderColor=\'#dc2626\'; this.style.background=\'#fef2f2\';" '
-                    + 'onmouseout="this.style.borderColor=\'#e2e8f0\'; this.style.background=\'#fff\';">'
-                    + '<div style="display:flex; justify-content:space-between; align-items:flex-start;">'
-                    + '<div>'
-                    + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0;">' + o.order_number + '</p>'
-                    + '<p style="font-size:12px; color:#64748b; margin:3px 0 0;">Table ' + (o.table_number || '—') + ' &nbsp;&middot;&nbsp; ' + o.items_count + ' item' + (o.items_count !== 1 ? 's' : '') + '</p>'
-                    + '</div>'
-                    + '<span style="font-size:14px; font-weight:900; color:#dc2626;">Rs. ' + o.total.toFixed(2) + '</span>'
-                    + '</div></div>';
-            }).join('');
+            const list = document.getElementById('heldOrdersList');
+            if (orders.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">No held orders</p>';
+            } else {
+                list.innerHTML = orders.map(function(o) {
+                    return '<div onclick="resumeOrder(' + o.id + ')" '
+                        + 'style="padding:14px; border:1.5px solid #e2e8f0; border-radius:12px; cursor:pointer; transition:all 0.15s; background:#fff;" '
+                        + 'onmouseover="this.style.borderColor=\'#dc2626\'; this.style.background=\'#fef2f2\';" '
+                        + 'onmouseout="this.style.borderColor=\'#e2e8f0\'; this.style.background=\'#fff\';">'
+                        + '<div style="display:flex; justify-content:space-between; align-items:flex-start;">'
+                        + '<div>'
+                        + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0;">' + o.order_number + '</p>'
+                        + '<p style="font-size:12px; color:#64748b; margin:3px 0 0;">Table ' + (o.table_number || '—') + ' &nbsp;&middot;&nbsp; ' + o.items_count + ' item' + (o.items_count !== 1 ? 's' : '') + '</p>'
+                        + '</div>'
+                        + '<span style="font-size:14px; font-weight:900; color:#dc2626;">Rs. ' + o.total.toFixed(2) + '</span>'
+                        + '</div></div>';
+                }).join('');
+            }
+            openModal('heldOrdersModal');
+        } catch (e) {
+            console.error('Load held orders error:', e);
+            toast('Error loading held orders', 'error');
         }
-        openModal('heldOrdersModal');
     }
 
     async function resumeOrder(orderId) {
@@ -1256,6 +1287,33 @@
         toast('Order resumed');
     }
 
+    async function closeCurrentOrder() {
+        if (!currentOrder || !currentOrder.id) return;
+        if (currentOrder.items && currentOrder.items.length > 0) {
+            if (!confirm('This order has items. Close anyway and discard all items?')) return;
+        }
+
+        // Call backend to cancel the order and free the table
+        try {
+            const res = await fetch('{{ route("pos.order.close_table", ":id") }}'.replace(':id', currentOrder.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+            });
+            if (!res.ok) {
+                toast('Failed to close table', 'error');
+                return;
+            }
+        } catch (e) {
+            console.error('Close order error:', e);
+            toast('Error closing table', 'error');
+            return;
+        }
+
+        resetOrder();
+        await loadTables();
+        toast('Table deselected', 'success');
+    }
+
     // ═══════════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════════
@@ -1265,8 +1323,8 @@
         currentTable = null;
         selectedPaymentMethod = 'cash';
 
-        document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table, then add items</p></div>';
-        document.getElementById('selectedTableLabel').innerHTML = '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table to begin';
+        document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table or create takeaway order</p></div>';
+        document.getElementById('selectedTableLabel').innerHTML = '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table or create takeaway order';
         document.getElementById('customerInfoToggle').style.display     = 'none';
         document.getElementById('customerInfoSection').style.display    = 'none';
         document.getElementById('activeOrderBanner').style.display      = 'none';

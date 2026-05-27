@@ -350,8 +350,7 @@ class PosController extends Controller
         $order->update(['waiter_bill_printed_at' => now()]);
 
         $subtotal = $order->items->sum('subtotal');
-        $tax = $subtotal * 0.10;
-        $total = $subtotal + $tax;
+        $total = $subtotal;
 
         return response()->json([
             'success' => true,
@@ -360,7 +359,7 @@ class PosController extends Controller
             'customer_name' => $order->customer_name,
             'customer_phone' => $order->customer_phone,
             'subtotal' => (float) $subtotal,
-            'tax_amount' => (float) $tax,
+            'tax_amount' => 0,
             'total' => (float) $total,
             'items' => $order->items->map(fn($item) => [
                 'product_name' => $item->product_name,
@@ -385,18 +384,14 @@ class PosController extends Controller
 
     public function closeTable(Order $order)
     {
-        if ($order->items->count() === 0) {
-            $order->update(['status' => 'cancelled']);
-            if ($order->table_id) {
-                RestaurantTable::find($order->table_id)->update([
-                    'status' => 'available',
-                    'occupied_at' => null,
-                ]);
-            }
-            return response()->json(['success' => true, 'message' => 'Table closed']);
+        $order->update(['status' => 'cancelled']);
+        if ($order->table_id) {
+            RestaurantTable::find($order->table_id)->update([
+                'status' => 'available',
+                'occupied_at' => null,
+            ]);
         }
-
-        return response()->json(['error' => 'Cannot close table with active order'], 400);
+        return response()->json(['success' => true, 'message' => 'Table closed']);
     }
 
     public function payOrder(Request $request, Order $order)
@@ -434,11 +429,15 @@ class PosController extends Controller
             'printed_at'      => now(),
         ]);
 
+        // Only update table status if this order is for dine-in (has a table_id)
         if ($order->table_id) {
-            RestaurantTable::find($order->table_id)->update([
-                'status'      => 'available',
-                'occupied_at' => null,
-            ]);
+            $table = RestaurantTable::find($order->table_id);
+            if ($table) {
+                $table->update([
+                    'status'      => 'available',
+                    'occupied_at' => null,
+                ]);
+            }
         }
 
         return response()->json([
