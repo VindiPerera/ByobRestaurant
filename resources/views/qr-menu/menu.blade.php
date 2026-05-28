@@ -202,7 +202,7 @@
 
                 const html = `
                     <div class="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition">
-                        ${product.image ? `<img src="${product.image}" alt="${product.name}" class="w-full h-48 object-cover">` : '<div class="w-full h-48 bg-gray-200 flex items-center justify-center"><i class="fas fa-image text-gray-400 text-4xl"></i></div>'}
+                        ${product.image ? `<img src="/storage/${product.image}" alt="${product.name}" class="w-full h-48 object-cover">` : '<div class="w-full h-48 bg-gray-200 flex items-center justify-center"><i class="fas fa-image text-gray-400 text-4xl"></i></div>'}
                         <div class="p-4">
                             <h3 class="text-lg font-bold text-gray-800 mb-2">${product.name}</h3>
                             ${product.description ? `<p class="text-gray-600 text-sm mb-3">${product.description}</p>` : ''}

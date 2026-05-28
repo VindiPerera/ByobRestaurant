@@ -14,6 +14,7 @@ use App\Http\Controllers\WastageController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\QrMenuController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -55,6 +56,9 @@ Route::middleware('auth')->group(function () {
 
     // Employee CRUD routes
     Route::resource('employees', EmployeeController::class);
+
+    // User password update
+    Route::post('/users/{user}/update-password', [UserController::class, 'updatePassword']);
 
     // Wastage CRUD routes
     Route::resource('wastages', WastageController::class);

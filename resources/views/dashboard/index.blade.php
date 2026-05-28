@@ -35,18 +35,18 @@
             transform: translateY(-5px);
             border-color: rgba(0,0,0,0.1);
         }
-        .module-card:nth-child(1)  { background: linear-gradient(135deg, #fde8e8, #fecaca); }
-        .module-card:nth-child(2)  { background: linear-gradient(135deg, #e8f4fd, #bfdbfe); }
-        .module-card:nth-child(3)  { background: linear-gradient(135deg, #edfcf2, #bbf7d0); }
-        .module-card:nth-child(4)  { background: linear-gradient(135deg, #fef9e8, #fde68a); }
-        .module-card:nth-child(5)  { background: linear-gradient(135deg, #f3e8fd, #e9d5ff); }
-        .module-card:nth-child(6)  { background: linear-gradient(135deg, #e8fdf9, #99f6e4); }
-        .module-card:nth-child(7)  { background: linear-gradient(135deg, #fdf0e8, #fed7aa); }
-        .module-card:nth-child(8)  { background: linear-gradient(135deg, #fde8f4, #fbcfe8); }
-        .module-card:nth-child(9)  { background: linear-gradient(135deg, #e8eafd, #c7d2fe); }
-        .module-card:nth-child(10) { background: linear-gradient(135deg, #f0fde8, #d9f99d); }
-        .module-card:nth-child(11) { background: linear-gradient(135deg, #fde8e8, #fecaca); }
-        .module-card:nth-child(12) { background: linear-gradient(135deg, #e8f4fd, #bfdbfe); }
+        .module-card:nth-child(1)  { background: #fcc2c2; }
+        .module-card:nth-child(2)  { background: #c6e5fc; }
+        .module-card:nth-child(3)  { background: #c6f6d5; }
+        .module-card:nth-child(4)  { background: #fef08a; }
+        .module-card:nth-child(5)  { background: #e9d5ff; }
+        .module-card:nth-child(6)  { background: #99f6e4; }
+        .module-card:nth-child(7)  { background: #fed7aa; }
+        .module-card:nth-child(8)  { background: #fbcfe8; }
+        .module-card:nth-child(9)  { background: #c7d2fe; }
+        .module-card:nth-child(10) { background: #d9f99d; }
+        .module-card:nth-child(11) { background: #fca5a5; }
+        .module-card:nth-child(12) { background: #bfdbfe; }
 
         .module-icon {
             width: 50px; height: 50px;

@@ -640,46 +640,110 @@
 
     async function startTakeawayOrder(forceType) {
         showLoading();
-        // Deselect any previously selected table
-        document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
-        currentTable = null;
+        try {
+            // Deselect any previously selected table
+            document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
+            currentTable = null;
 
-        let orderType = 'takeaway';
-        if (typeof forceType === 'string') {
-            orderType = forceType;
-        }
+            let orderType = 'takeaway';
+            if (typeof forceType === 'string' && ['takeaway', 'delivery', 'vip_room'].includes(forceType)) {
+                orderType = forceType;
+            }
 
-        const selectEl = document.getElementById('orderTypeSelect');
-        if (selectEl && selectEl.value !== orderType) {
-            selectEl.value = orderType;
-        }
+            const selectEl = document.getElementById('orderTypeSelect');
+            if (selectEl && selectEl.value !== orderType) {
+                selectEl.value = orderType;
+            }
 
-        const res  = await fetch('{{ route("pos.order.create") }}', {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                order_type: orderType
-            })
-        });
-        if (!res.ok) {
+            const res = await fetch('{{ route("pos.order.create") }}', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_type: orderType
+                })
+            });
+
+            if (!res.ok) {
+                hideLoading();
+                console.error('Order creation HTTP error. Status:', res.status, 'Text:', res.statusText);
+                let errorMessage = 'Failed to create ' + orderType + ' order';
+
+                if (res.status === 419) {
+                    errorMessage = 'Session expired. Please reload the page and try again.';
+                    console.error('CSRF/Session token error');
+                } else if (res.status === 422) {
+                    try {
+                        const errorData = await res.json();
+                        console.error('Validation errors:', errorData);
+                        if (errorData.errors) {
+                            errorMessage = Object.values(errorData.errors)[0][0] || errorMessage;
+                        }
+                    } catch (e) {
+                        console.error('Could not parse error response');
+                    }
+                } else {
+                    try {
+                        const errorData = await res.json();
+                        console.error('Order creation error:', errorData);
+                        if (errorData.message) {
+                            errorMessage = errorData.message;
+                        }
+                    } catch (e) {
+                        console.error('Could not parse error response');
+                    }
+                }
+
+                toast(errorMessage, 'error');
+                return false;
+            }
+
+            let data;
+            try {
+                data = await res.json();
+                console.log('Order created successfully:', data);
+            } catch (e) {
+                hideLoading();
+                console.error('Failed to parse response JSON:', e);
+                toast('Invalid server response. Please try again.', 'error');
+                return false;
+            }
+
+            if (!data || !data.order_id) {
+                hideLoading();
+                console.error('Missing order_id in response:', data);
+                toast('Failed to create ' + orderType + ' order: Invalid response from server', 'error');
+                return false;
+            }
+
+            currentOrder = {
+                id: data.order_id,
+                order_number: data.order_number,
+                items: [],
+                subtotal: 0,
+                total: 0,
+                discount_amount: 0,
+                live_bill_enabled: false,
+                customer_name: null,
+                customer_phone: null,
+                table_id: null,
+                order_type: orderType,
+                table_number: null,
+                table_name: null
+            };
+
+            renderTableView();
+            renderBill();
             hideLoading();
-            toast('Failed to create ' + orderType + ' order', 'error');
+
+            const typeLabel = orderType.charAt(0).toUpperCase() + orderType.slice(1);
+            toast(typeLabel + ' order created — ready to add items', 'success');
+            return true;
+        } catch (e) {
+            console.error('startTakeawayOrder error:', e);
+            hideLoading();
+            toast('Error creating order: ' + e.message, 'error');
             return false;
         }
-        const data = await res.json();
-        currentOrder = {
-            id: data.order_id, order_number: data.order_number,
-            items: [], subtotal: 0, total: 0,
-            discount_amount: 0, live_bill_enabled: false,
-            customer_name: null, customer_phone: null,
-            table_id: null,
-            order_type: orderType
-        };
-        renderTableView();
-        renderBill();
-        hideLoading();
-        toast(orderType.charAt(0).toUpperCase() + orderType.slice(1) + ' order started — start adding items', 'success');
-        return true;
     }
 
     // ═══════════════════════════════════════════
@@ -755,14 +819,26 @@
         if (!currentOrder || !currentOrder.id) {
             const selectEl = document.getElementById('orderTypeSelect');
             const orderType = selectEl ? selectEl.value : 'dine_in';
-            if (orderType === 'takeaway' || orderType === 'delivery') {
+            if (orderType === 'takeaway' || orderType === 'delivery' || orderType === 'vip_room') {
                 const created = await startTakeawayOrder(orderType);
-                if (!created) return;
+                if (!created) {
+                    toast('Failed to create order. Please try again.', 'error');
+                    return;
+                }
+                // Small delay to ensure order is created
+                await new Promise(resolve => setTimeout(resolve, 100));
             } else {
                 toast('Please select a table or create a takeaway order first', 'error');
                 return;
             }
         }
+
+        // Verify order is valid before adding items
+        if (!currentOrder || !currentOrder.id || !Array.isArray(currentOrder.items)) {
+            toast('No active order. Please create an order first.', 'error');
+            return;
+        }
+
         // Optimistic update
         const existing = currentOrder.items.find(function(i) { return i.product_id === productId; });
         if (existing) {
@@ -783,7 +859,11 @@
             body: JSON.stringify({ product_id: productId, quantity: 1 })
         });
         const data = await res.json();
-        if (data.success) await syncOrder();
+        if (data.success) {
+            await syncOrder();
+        } else {
+            toast('Failed to add item to order', 'error');
+        }
     }
 
     async function syncOrder() {

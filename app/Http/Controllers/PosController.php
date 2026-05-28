@@ -101,7 +101,7 @@ class PosController extends Controller
             'waiter_name' => $validated['waiter_name'] ?? auth()->user()->name,
         ]);
 
-        if ($validated['table_id']) {
+        if (!empty($validated['table_id'])) {
             RestaurantTable::find($validated['table_id'])->update([
                 'status' => 'occupied',
                 'occupied_at' => now(),
