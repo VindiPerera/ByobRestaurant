@@ -273,7 +273,7 @@
                 <h3 style="font-size:14px; font-weight:800; color:#0f172a; margin:0;">
                     <i class="fas fa-receipt" style="color:#dc2626; margin-right:6px;"></i>Order
                 </h3>
-                <button onclick="loadHeldOrders()" style="font-size:10px; background:#fef3c7; color:#92400e; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700;">
+                <button onclick="loadHeldOrders(true)" style="font-size:10px; background:#fef3c7; color:#92400e; border:none; padding:4px 8px; border-radius:6px; cursor:pointer; font-weight:700;">
                     <i class="fas fa-pause-circle" style="margin-right:2px;"></i>Held <span id="heldCount" style="background:#f59e0b;color:#fff;border-radius:8px;padding:0px 5px; font-size:9px;">0</span>
                 </button>
             </div>
@@ -1319,10 +1319,10 @@
         });
         toast('Order held');
         resetOrder();
-        loadHeldOrders();
+        loadHeldOrders(true);
     }
 
-    async function loadHeldOrders() {
+    async function loadHeldOrders(showModal = false) {
         try {
             const res    = await fetch('{{ route("pos.held") }}');
             if (!res.ok) { toast('Failed to load held orders', 'error'); return; }
@@ -1349,7 +1349,9 @@
                         + '</div></div>';
                 }).join('');
             }
-            openModal('heldOrdersModal');
+            if (showModal) {
+                openModal('heldOrdersModal');
+            }
         } catch (e) {
             console.error('Load held orders error:', e);
             toast('Error loading held orders', 'error');
