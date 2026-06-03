@@ -14,7 +14,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
+        $user = $this->currentUser();
         $role = $user->role;
         $modules = $role->modules()->get();
 

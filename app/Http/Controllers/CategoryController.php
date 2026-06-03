@@ -10,7 +10,7 @@ class CategoryController extends Controller
     public function index()
     {
         $categories = Category::orderBy('sort_order')->paginate(10);
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.categories-list', [
             'categories' => $categories,
@@ -20,7 +20,7 @@ class CategoryController extends Controller
 
     public function create()
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.categories-create', [
             'modules' => $modules,
@@ -46,7 +46,7 @@ class CategoryController extends Controller
 
     public function edit(Category $category)
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.categories-edit', [
             'category' => $category,

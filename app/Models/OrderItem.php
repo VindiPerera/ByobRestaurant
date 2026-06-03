@@ -13,6 +13,7 @@ class OrderItem extends Model
         'unit_price',
         'quantity',
         'subtotal',
+        'discount_percent',
         'kitchen_notes',
         'is_bar_item',
     ];
@@ -20,6 +21,7 @@ class OrderItem extends Model
     protected $casts = [
         'unit_price' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'discount_percent' => 'decimal:2',
         'is_bar_item' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

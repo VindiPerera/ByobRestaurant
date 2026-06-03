@@ -5,7 +5,12 @@
 @section('content')
     <div>
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Add Supplier</h1>
+            <div class="flex items-center">
+                <a href="{{ route('suppliers.index') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mr-3 flex-shrink-0" title="Back">
+                    <i class="fas fa-arrow-left text-sm"></i>
+                </a>
+                <h1 class="text-4xl font-bold text-gray-900">Add Supplier</h1>
+            </div>
             <p class="text-gray-600 mt-2">Create a new supplier record</p>
         </div>
 
@@ -25,7 +30,7 @@
                     </div>
 
                     <div>
-                        <label for="contact_name" class="block text-sm font-semibold text-gray-900 mb-2">Contact Name</label>
+                        <label for="contact_name" class="block text-sm font-semibold text-gray-900 mb-2">Company Name</label>
                         <input type="text" name="contact_name" id="contact_name" value="{{ old('contact_name') }}"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('contact_name') ? 'border-red-600' : '' }}"
                             placeholder="Primary contact">
@@ -46,7 +51,7 @@
 
                     <div>
                         <label for="phone" class="block text-sm font-semibold text-gray-900 mb-2">Phone</label>
-                        <input type="text" name="phone" id="phone" value="{{ old('phone') }}"
+                        <input type="tel" name="phone" id="phone" value="{{ old('phone') }}"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('phone') ? 'border-red-600' : '' }}"
                             placeholder="Phone number">
                         @error('phone')

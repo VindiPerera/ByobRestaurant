@@ -13,7 +13,7 @@ class ReportsController extends Controller
 {
     public function index()
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         // ── Summary cards ──────────────────────────────────────────
         $totalRevenue  = Order::where('status', 'completed')->sum('total');
@@ -45,6 +45,14 @@ class ReportsController extends Controller
         });
         $chartLabels  = $last7Days->pluck('label')->toJson();
         $chartData    = $last7Days->pluck('revenue')->toJson();
+
+        // ── Pending sales (unsettled / on-hold orders) ─────────────
+        $pendingSales = Order::whereIn('status', ['pending', 'hold', 'confirmed'])
+                             ->with(['table', 'items'])
+                             ->latest()
+                             ->get();
+        $pendingCount = $pendingSales->count();
+        $pendingTotal = $pendingSales->sum('total');
 
         // ── Recent sales table (last 20 completed orders) ───────────
         $recentSales = Order::where('status', 'completed')
@@ -85,7 +93,8 @@ class ReportsController extends Controller
             'totalRevenue', 'todaySales', 'monthRevenue',
             'totalOrders', 'avgOrderValue', 'topProduct',
             'chartLabels', 'chartData',
-            'recentSales', 'topProducts', 'paymentBreakdown'
+            'recentSales', 'topProducts', 'paymentBreakdown',
+            'pendingSales', 'pendingCount', 'pendingTotal'
         ));
     }
 

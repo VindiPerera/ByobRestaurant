@@ -1,12 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'Edit Employee')
+@section('title', 'Edit User')
 
 @section('content')
     <div>
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Edit Employee</h1>
-            <p class="text-gray-600 mt-2">Update employee information</p>
+            <div class="flex items-center">
+                <a href="{{ route('employees.index') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mr-3 flex-shrink-0" title="Back">
+                    <i class="fas fa-arrow-left text-sm"></i>
+                </a>
+                <h1 class="text-4xl font-bold text-gray-900">Edit User</h1>
+            </div>
+            <p class="text-gray-600 mt-2">Update user information and status</p>
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-8 max-w-3xl">
@@ -164,7 +169,7 @@
 
                 <div class="flex gap-4 pt-4">
                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
-                        <i class="fas fa-save mr-2"></i>Update Employee
+                        <i class="fas fa-save mr-2"></i>Update User
                     </button>
                     <a href="{{ route('employees.index') }}" class="bg-gray-300 hover:bg-gray-400 text-gray-900 px-6 py-2 rounded-lg font-semibold transition-colors">
                         <i class="fas fa-times mr-2"></i>Cancel

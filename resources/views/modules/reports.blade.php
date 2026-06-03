@@ -28,8 +28,8 @@
         </div>
     </div>
 
-    <!-- ── SUMMARY CARDS (6 cards) ── -->
-    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+    <!-- ── SUMMARY CARDS (7 cards) ── -->
+    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-4 mb-8">
 
         <!-- Total Revenue -->
         <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
@@ -73,6 +73,78 @@
             <div class="mt-2 w-8 h-1 rounded-full bg-green-400"></div>
         </div>
 
+        <!-- Pending Sales -->
+        <div class="bg-amber-50 rounded-2xl p-5 border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
+            <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">Pending Bills</p>
+            <p class="text-xl font-bold text-amber-700">{{ $pendingCount }} <span class="text-sm font-normal">open</span></p>
+            <p class="text-xs text-amber-600 mt-0.5">LKR {{ number_format($pendingTotal, 2) }}</p>
+            <div class="mt-2 w-8 h-1 rounded-full bg-amber-400"></div>
+        </div>
+
+    </div>
+
+    <!-- ── PENDING SALES ── -->
+    <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden mb-8">
+        <div class="px-6 py-4 border-b border-amber-100 flex items-center justify-between bg-amber-50">
+            <h2 class="text-lg font-bold text-amber-800">
+                <i class="fas fa-clock text-amber-500 mr-2"></i>Pending Sales
+                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-200 text-amber-800">{{ $pendingCount }} unsettled</span>
+            </h2>
+            <span class="text-sm font-semibold text-amber-700">Total: LKR {{ number_format($pendingTotal, 2) }}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Order #</th>
+                        <th class="px-4 py-3 text-left">Table</th>
+                        <th class="px-4 py-3 text-left">Customer</th>
+                        <th class="px-4 py-3 text-left">Type</th>
+                        <th class="px-4 py-3 text-left">Items</th>
+                        <th class="px-4 py-3 text-right">Bill Total</th>
+                        <th class="px-4 py-3 text-center">Status</th>
+                        <th class="px-4 py-3 text-right">Started</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($pendingSales as $pending)
+                    @php
+                        $statusColors = [
+                            'pending'   => 'bg-amber-100 text-amber-700',
+                            'hold'      => 'bg-blue-100 text-blue-700',
+                            'confirmed' => 'bg-green-100 text-green-700',
+                        ];
+                        $statusColor = $statusColors[$pending->status] ?? 'bg-gray-100 text-gray-600';
+                        $itemList = $pending->items->map(fn($i) => $i->quantity . '× ' . $i->product_name)->implode(', ');
+                    @endphp
+                    <tr class="hover:bg-amber-50 transition-colors">
+                        <td class="px-4 py-3 font-mono text-xs text-gray-700">{{ $pending->order_number }}</td>
+                        <td class="px-4 py-3 text-gray-600">
+                            {{ $pending->table?->name ?? ($pending->table?->table_number ? 'T'.$pending->table->table_number : '—') }}
+                        </td>
+                        <td class="px-4 py-3 text-gray-600">{{ $pending->customer_name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-500 capitalize">{{ str_replace('_', ' ', $pending->order_type) }}</td>
+                        <td class="px-4 py-3 text-gray-500 max-w-xs truncate" title="{{ $itemList }}">
+                            {{ $itemList ?: '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-right font-semibold text-gray-900">
+                            LKR {{ number_format($pending->total, 2) }}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {{ $statusColor }}">
+                                {{ ucfirst($pending->status) }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right text-gray-400 text-xs whitespace-nowrap">
+                            {{ $pending->created_at->format('d M, H:i') }}
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="8" class="px-4 py-10 text-center text-gray-400">No pending bills right now — all clear!</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- ── REVENUE CHART (last 7 days) ── -->

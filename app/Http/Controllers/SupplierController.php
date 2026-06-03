@@ -10,7 +10,7 @@ class SupplierController extends Controller
     public function index()
     {
         $suppliers = Supplier::paginate(10);
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.suppliers-list', [
             'suppliers' => $suppliers,
@@ -20,7 +20,7 @@ class SupplierController extends Controller
 
     public function create()
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.suppliers-create', [
             'modules' => $modules,
@@ -49,7 +49,7 @@ class SupplierController extends Controller
 
     public function edit(Supplier $supplier)
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.suppliers-edit', [
             'supplier' => $supplier,

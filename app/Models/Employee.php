@@ -8,6 +8,11 @@ class Employee extends Model
 {
     protected $fillable = ['user_id', 'phone', 'address', 'city', 'state', 'postal_code', 'hire_date', 'salary'];
 
+    protected $casts = [
+        'hire_date' => 'date',
+        'salary' => 'decimal:2',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);

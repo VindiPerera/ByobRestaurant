@@ -43,5 +43,30 @@
     </div>
 
     @yield('scripts')
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var CTRL_KEYS  = [8, 9, 13, 27, 46, 35, 36, 37, 38, 39, 40]; // backspace,tab,enter,esc,del,home,end,arrows
+        var DIGITS     = function (k) { return (k >= 48 && k <= 57) || (k >= 96 && k <= 105); };
+        var SHORTCUT   = function (e) { return (e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].includes(e.keyCode); };
+
+        // Amounts / quantities: digits + decimal + minus allowed
+        document.querySelectorAll('input[type="number"]').forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (CTRL_KEYS.includes(e.keyCode) || SHORTCUT(e) || DIGITS(e.keyCode)) return;
+                if (e.keyCode === 190 || e.keyCode === 110) return; // decimal point
+                if (e.keyCode === 189 || e.keyCode === 109) return; // minus
+                e.preventDefault();
+            });
+        });
+
+        // Phone fields (type="tel") and any field marked data-numeric: digits only
+        document.querySelectorAll('input[type="tel"], input[data-numeric]').forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (CTRL_KEYS.includes(e.keyCode) || SHORTCUT(e) || DIGITS(e.keyCode)) return;
+                e.preventDefault();
+            });
+        });
+    });
+    </script>
 </body>
 </html>

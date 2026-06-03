@@ -5,7 +5,12 @@
 @section('content')
     <div>
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Edit Customer</h1>
+            <div class="flex items-center">
+                <a href="{{ route('customers.index') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mr-3 flex-shrink-0" title="Back">
+                    <i class="fas fa-arrow-left text-sm"></i>
+                </a>
+                <h1 class="text-4xl font-bold text-gray-900">Edit Customer</h1>
+            </div>
             <p class="text-gray-600 mt-2">Update customer information</p>
         </div>
 
@@ -28,8 +33,18 @@
                     <label for="phone_number" class="block text-sm font-semibold text-gray-900 mb-2">Phone Number <span class="text-red-600">*</span></label>
                     <input type="tel" name="phone_number" id="phone_number" value="{{ old('phone_number', $customer->phone_number) }}" required
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('phone_number') ? 'border-red-600' : '' }}"
-                        placeholder="+1 (555) 000-0000">
+                        placeholder="0771234567">
                     @error('phone_number')
+                        <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-semibold text-gray-900 mb-2">Email <span class="text-gray-500">(Optional)</span></label>
+                    <input type="email" name="email" id="email" value="{{ old('email', $customer->email) }}"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('email') ? 'border-red-600' : '' }}"
+                        placeholder="customer@example.com">
+                    @error('email')
                         <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
                     @enderror
                 </div>

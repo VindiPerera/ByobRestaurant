@@ -14,7 +14,7 @@ class EmployeeController extends Controller
     public function index()
     {
         $employees = Employee::with('user')->paginate(10);
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.employees-list', [
             'employees' => $employees,
             'modules' => $modules,
@@ -24,7 +24,7 @@ class EmployeeController extends Controller
     public function create()
     {
         $roles = Role::all();
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.employees-create', [
             'roles' => $roles,
             'modules' => $modules,
@@ -75,7 +75,7 @@ class EmployeeController extends Controller
     public function edit(Employee $employee)
     {
         $roles = Role::all();
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.employees-edit', [
             'employee' => $employee->load('user'),
             'roles' => $roles,

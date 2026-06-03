@@ -10,7 +10,7 @@ class StockAdjustmentController extends Controller
 {
     public function index()
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         $movements = StockMovement::with(['product', 'user'])->latest()->paginate(15);
 
         return view('modules.stock-adjustments-index', [
@@ -21,7 +21,7 @@ class StockAdjustmentController extends Controller
 
     public function create()
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         $products = Product::orderBy('name')->get();
 
         return view('modules.stock-adjustments-create', [
@@ -61,7 +61,7 @@ class StockAdjustmentController extends Controller
             'source' => 'adjustment',
             'reference_type' => 'stock_adjustment',
             'reference_id' => null,
-            'user_id' => auth()->id(),
+            'user_id' => $this->currentUser()->id,
             'notes' => $validated['notes'] ?? null,
         ]);
 

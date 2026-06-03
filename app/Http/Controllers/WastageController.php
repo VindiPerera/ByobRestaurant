@@ -12,7 +12,7 @@ class WastageController extends Controller
     public function index()
     {
         $wastages = Wastage::with('product')->paginate(10);
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.wastages-list', [
             'wastages' => $wastages,
             'modules' => $modules,
@@ -22,7 +22,7 @@ class WastageController extends Controller
     public function create()
     {
         $products = Product::where('status', 'active')->get();
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.wastages-create', [
             'products' => $products,
             'modules' => $modules,
@@ -63,7 +63,7 @@ class WastageController extends Controller
 
     public function show(Wastage $wastage)
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.wastages-show', [
             'wastage' => $wastage,
             'modules' => $modules,
@@ -73,7 +73,7 @@ class WastageController extends Controller
     public function edit(Wastage $wastage)
     {
         $products = Product::where('status', 'active')->get();
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.wastages-edit', [
             'wastage' => $wastage,
             'products' => $products,
@@ -185,7 +185,7 @@ class WastageController extends Controller
             'source' => 'wastage',
             'reference_type' => 'wastage',
             'reference_id' => $wastageId,
-            'user_id' => auth()->id(),
+            'user_id' => $this->currentUser()->id,
             'notes' => $notes,
         ]);
     }

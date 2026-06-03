@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
     })->name('qr.admin');
 
     // Customer CRUD routes
+    Route::get('/customers/search', [CustomerController::class, 'search'])->name('customers.search');
     Route::resource('customers', CustomerController::class);
 
     // Category CRUD routes

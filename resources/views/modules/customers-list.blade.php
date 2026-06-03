@@ -28,6 +28,7 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Phone Number</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Address</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
                                 <th class="px-6 py-3 text-center text-sm font-semibold text-gray-900">Actions</th>
@@ -38,6 +39,7 @@
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $customer->name }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $customer->phone_number }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $customer->email ?? '—' }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ $customer->address ?? 'N/A' }}</td>
                                     <td class="px-6 py-4 text-sm">
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $customer->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">

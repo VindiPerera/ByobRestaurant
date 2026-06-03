@@ -5,7 +5,12 @@
 @section('content')
     <div>
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">New Stock Adjustment</h1>
+            <div class="flex items-center">
+                <a href="{{ route('stock.adjustments.index') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mr-3 flex-shrink-0" title="Back">
+                    <i class="fas fa-arrow-left text-sm"></i>
+                </a>
+                <h1 class="text-4xl font-bold text-gray-900">New Stock Adjustment</h1>
+            </div>
             <p class="text-gray-600 mt-2">Manually increase or decrease stock quantities</p>
         </div>
 

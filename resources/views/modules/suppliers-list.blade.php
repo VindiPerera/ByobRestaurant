@@ -27,7 +27,7 @@
                         <thead class="bg-gray-50 border-b border-gray-200">
                             <tr>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Name</th>
-                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Contact</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Company Name</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Phone</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Email</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>

@@ -15,6 +15,6 @@ class Role extends Model
 
     public function modules()
     {
-        return $this->belongsToMany(Module::class, 'role_module');
+        return $this->belongsToMany(Module::class, 'role_module')->orderBy('sort_order');
     }
 }

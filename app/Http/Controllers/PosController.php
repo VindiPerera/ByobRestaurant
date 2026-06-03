@@ -17,7 +17,7 @@ class PosController extends Controller
         $tables = RestaurantTable::all()->load('activeOrder.items');
         $categories = Category::where('status', 'active')->orderBy('sort_order')->get();
         $products = Product::where('status', 'active')->get();
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
 
         return view('modules.pos', [
             'tables' => $tables,
@@ -53,13 +53,13 @@ class PosController extends Controller
         $query = Product::where('status', 'active');
 
         if ($request->has('search')) {
-            $search = $request->get('search');
+            $search = $request->input('search');
             $query->where('name', 'like', "%{$search}%")
                 ->orWhere('barcode', $search);
         }
 
         if ($request->has('category_id')) {
-            $query->where('category_id', $request->get('category_id'));
+            $query->where('category_id', $request->input('category_id'));
         }
 
         $products = $query->get()->map(function ($product) {
@@ -96,9 +96,9 @@ class PosController extends Controller
             'customer_id' => $validated['customer_id'] ?? null,
             'customer_name' => $validated['customer_name'] ?? null,
             'customer_phone' => $validated['customer_phone'] ?? null,
-            'user_id' => auth()->id(),
+            'user_id' => $this->currentUser()->id,
             'order_type' => $validated['order_type'],
-            'waiter_name' => $validated['waiter_name'] ?? auth()->user()->name,
+            'waiter_name' => $validated['waiter_name'] ?? $this->currentUser()->name,
         ]);
 
         if (!empty($validated['table_id'])) {
@@ -142,6 +142,7 @@ class PosController extends Controller
                     'unit_price' => (float) $item->unit_price,
                     'quantity' => $item->quantity,
                     'subtotal' => (float) $item->subtotal,
+                    'discount_percent' => (float) $item->discount_percent,
                     'kitchen_notes' => $item->kitchen_notes,
                     'is_bar_item' => $item->is_bar_item,
                     'image' => $item->product?->image,
@@ -184,6 +185,10 @@ class PosController extends Controller
             ]);
         }
 
+        if (!$product->is_unlimited_stock) {
+            $product->decrement('quantity', $validated['quantity']);
+        }
+
         $this->updateOrderTotals($order);
 
         return response()->json([
@@ -195,6 +200,10 @@ class PosController extends Controller
 
     public function removeItem(Request $request, Order $order, OrderItem $item)
     {
+        Product::where('id', $item->product_id)
+            ->where('is_unlimited_stock', false)
+            ->increment('quantity', $item->quantity);
+
         $item->delete();
         $this->updateOrderTotals($order);
 
@@ -204,14 +213,30 @@ class PosController extends Controller
     public function updateItem(Request $request, Order $order, OrderItem $item)
     {
         $validated = $request->validate([
-            'quantity' => 'required|integer|min:1',
-            'kitchen_notes' => 'nullable|string',
+            'quantity'         => 'required|integer|min:1',
+            'kitchen_notes'    => 'nullable|string',
+            'discount_percent' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $diff = $validated['quantity'] - $item->quantity;
+        if ($diff > 0) {
+            Product::where('id', $item->product_id)
+                ->where('is_unlimited_stock', false)
+                ->decrement('quantity', $diff);
+        } elseif ($diff < 0) {
+            Product::where('id', $item->product_id)
+                ->where('is_unlimited_stock', false)
+                ->increment('quantity', abs($diff));
+        }
+
+        $discountPercent = $validated['discount_percent'] ?? $item->discount_percent;
+        $subtotal = $item->unit_price * $validated['quantity'] * (1 - $discountPercent / 100);
+
         $item->update([
-            'quantity' => $validated['quantity'],
-            'subtotal' => $item->unit_price * $validated['quantity'],
-            'kitchen_notes' => $validated['kitchen_notes'] ?? $item->kitchen_notes,
+            'quantity'         => $validated['quantity'],
+            'subtotal'         => $subtotal,
+            'discount_percent' => $discountPercent,
+            'kitchen_notes'    => $validated['kitchen_notes'] ?? $item->kitchen_notes,
         ]);
 
         $this->updateOrderTotals($order);
@@ -362,11 +387,12 @@ class PosController extends Controller
             'tax_amount' => 0,
             'total' => (float) $total,
             'items' => $order->items->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'unit_price' => (float) $item->unit_price,
-                'subtotal' => (float) $item->subtotal,
-                'kitchen_notes' => $item->kitchen_notes,
+                'product_name'    => $item->product_name,
+                'quantity'        => $item->quantity,
+                'unit_price'      => (float) $item->unit_price,
+                'subtotal'        => (float) $item->subtotal,
+                'discount_percent'=> (float) $item->discount_percent,
+                'kitchen_notes'   => $item->kitchen_notes,
             ]),
         ]);
     }
@@ -384,6 +410,13 @@ class PosController extends Controller
 
     public function closeTable(Order $order)
     {
+        $order->load('items');
+        foreach ($order->items as $item) {
+            Product::where('id', $item->product_id)
+                ->where('is_unlimited_stock', false)
+                ->increment('quantity', $item->quantity);
+        }
+
         $order->update(['status' => 'cancelled']);
         if ($order->table_id) {
             RestaurantTable::find($order->table_id)->update([
@@ -454,11 +487,12 @@ class PosController extends Controller
             'amount_paid'     => (float) $amountPaid,
             'change_amount'   => (float) $change,
             'items'           => $order->items->map(fn($item) => [
-                'product_name'  => $item->product_name,
-                'quantity'      => $item->quantity,
-                'unit_price'    => (float) $item->unit_price,
-                'subtotal'      => (float) $item->subtotal,
-                'kitchen_notes' => $item->kitchen_notes,
+                'product_name'     => $item->product_name,
+                'quantity'         => $item->quantity,
+                'unit_price'       => (float) $item->unit_price,
+                'subtotal'         => (float) $item->subtotal,
+                'discount_percent' => (float) $item->discount_percent,
+                'kitchen_notes'    => $item->kitchen_notes,
             ]),
         ]);
     }

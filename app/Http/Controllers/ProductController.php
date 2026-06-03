@@ -14,7 +14,7 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::with(['category', 'supplierRecord'])->paginate(10);
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.products-list', [
             'products' => $products,
             'modules' => $modules,
@@ -23,7 +23,7 @@ class ProductController extends Controller
 
     public function create()
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         $categories = Category::where('status', 'active')->get();
         $suppliers = Supplier::where('status', 'active')->orderBy('name')->get();
         return view('modules.products-create', [
@@ -44,7 +44,7 @@ class ProductController extends Controller
             'product_code' => 'nullable|string|unique:products',
             'description' => 'nullable|string|max:1000',
             'cost_price' => 'nullable|numeric|min:0',
-            'selling_price' => 'nullable|numeric|min:0',
+            'selling_price' => 'required|numeric|min:0',
             'quantity' => $isUnlimitedStock ? 'nullable|integer|min:0' : 'required|integer|min:0',
             'is_unlimited_stock' => 'nullable|boolean',
             'barcode' => 'nullable|string|unique:products',
@@ -71,7 +71,7 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         return view('modules.products-show', [
             'product' => $product,
             'modules' => $modules,
@@ -80,7 +80,7 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        $modules = auth()->user()->role->modules()->get();
+        $modules = $this->currentUser()->role->modules()->get();
         $categories = Category::where('status', 'active')->get();
         $suppliers = Supplier::where('status', 'active')->orderBy('name')->get();
         return view('modules.products-edit', [
@@ -102,7 +102,7 @@ class ProductController extends Controller
             'product_code' => 'nullable|string|unique:products,product_code,' . $product->id,
             'description' => 'nullable|string|max:1000',
             'cost_price' => 'nullable|numeric|min:0',
-            'selling_price' => 'nullable|numeric|min:0',
+            'selling_price' => 'required|numeric|min:0',
             'quantity' => $isUnlimitedStock ? 'nullable|integer|min:0' : 'required|integer|min:0',
             'is_unlimited_stock' => 'nullable|boolean',
             'barcode' => 'nullable|string|unique:products,barcode,' . $product->id,

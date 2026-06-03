@@ -5,7 +5,12 @@
 @section('content')
     <div>
         <div class="mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Add Product</h1>
+            <div class="flex items-center">
+                <a href="{{ route('inventory.index') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mr-3 flex-shrink-0" title="Back">
+                    <i class="fas fa-arrow-left text-sm"></i>
+                </a>
+                <h1 class="text-4xl font-bold text-gray-900">Add Product</h1>
+            </div>
             <p class="text-gray-600 mt-2">Create a new product entry</p>
         </div>
 
@@ -77,8 +82,8 @@
                     </div>
 
                     <div>
-                        <label for="selling_price" class="block text-sm font-semibold text-gray-900 mb-2">Selling Price</label>
-                        <input type="number" name="selling_price" id="selling_price" value="{{ old('selling_price') }}" step="0.01" min="0"
+                        <label for="selling_price" class="block text-sm font-semibold text-gray-900 mb-2">Selling Price <span class="text-red-600">*</span></label>
+                        <input type="number" name="selling_price" id="selling_price" value="{{ old('selling_price') }}" step="0.01" min="0" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('selling_price') ? 'border-red-600' : '' }}"
                             placeholder="0.00">
                         @error('selling_price')
@@ -155,12 +160,14 @@
 
                 <div>
                     <label for="image" class="block text-sm font-semibold text-gray-900 mb-2">Product Image</label>
-                    <input type="file" name="image" id="image" accept="image/*"
+                    <input type="file" name="image" id="image" accept=".jpg,.jpeg,.png,.webp,.gif"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('image') ? 'border-red-600' : '' }}"
-                        >
+                        onchange="previewImage(this)">
+                    <p class="text-xs text-gray-500 mt-1">Accepted formats: .png / .jpg (max 2MB)</p>
                     @error('image')
                         <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
                     @enderror
+                    <img id="image-preview" src="#" alt="Preview" class="mt-2 w-28 h-28 object-cover rounded-lg border border-gray-200 hidden">
                 </div>
 
                 <div class="flex gap-4 pt-4">
@@ -178,6 +185,20 @@
 
 @section('scripts')
 <script>
+    function previewImage(input) {
+        const preview = document.getElementById('image-preview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+            };
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            preview.classList.add('hidden');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const unlimitedCheckbox = document.querySelector('input[name="is_unlimited_stock"]');
         const quantityInput = document.getElementById('quantity');

@@ -465,6 +465,9 @@
     let currentKotContent     = '';
     let currentBillContent    = '';
     let tableFilter           = 'all';
+    let stockCache            = {}; // { productId: remainingQty } for non-unlimited products
+    let openDiscountRows      = new Set(); // item IDs whose discount input row is open
+    let qtyLock               = {}; // { itemId: true } — prevents overlapping qty updates
 
     // ── Bootstrap ──
     async function initPos() {
@@ -606,6 +609,29 @@
             resetOrder();
             await loadTables();
             return;
+        }
+
+        // If switching to a different table while the current order is empty, release the old table first
+        if (currentOrder && currentOrder.id && (!currentOrder.items || currentOrder.items.length === 0)) {
+            const oldTableId = currentTable ? currentTable.id : null;
+            try {
+                await fetch('{{ route("pos.order.close_table", ":id") }}'.replace(':id', currentOrder.id), {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
+            } catch (e) {
+                console.error('Failed to release empty table:', e);
+            }
+            // Immediately show the old table as available
+            if (oldTableId) {
+                const oldCard = document.getElementById('tc-' + oldTableId);
+                if (oldCard) {
+                    oldCard.classList.remove('occupied', 'selected');
+                    oldCard.classList.add('available');
+                }
+            }
+            currentOrder = null;
+            currentTable = null;
         }
 
         showLoading();
@@ -760,6 +786,10 @@
             const res = await fetch('{{ route("pos.products") }}?' + params);
             if (!res.ok) { toast('Failed to load products', 'error'); return; }
             allProducts = await res.json();
+            stockCache = {};
+            allProducts.forEach(function(p) {
+                if (!p.is_unlimited_stock) stockCache[p.id] = p.quantity;
+            });
             renderProducts();
         } catch (e) {
             console.error('Load products error:', e);
@@ -801,12 +831,27 @@
                 imageHtml = '<i class="fas fa-utensils" style="color:#dc2626; font-size:18px;"></i>';
             }
 
-            return '<div class="product-card" onclick="addProductToOrder(' + p.id + ', \'' + escapeJs(p.name) + '\', ' + p.price + ')">'
+            const availableQty = p.is_unlimited_stock ? null : (stockCache.hasOwnProperty(p.id) ? stockCache[p.id] : p.quantity);
+            const isOutOfStock = !p.is_unlimited_stock && availableQty <= 0;
+            let stockBadge;
+            if (p.is_unlimited_stock) {
+                stockBadge = '<p style="font-size:10px; color:#16a34a; margin:2px 0 0; font-weight:600;">∞ Unlimited</p>';
+            } else if (availableQty > 0) {
+                stockBadge = '<p style="font-size:10px; color:#64748b; margin:2px 0 0;">Stock: ' + availableQty + '</p>';
+            } else {
+                stockBadge = '<p style="font-size:10px; color:#ef4444; margin:2px 0 0; font-weight:700;">Out of Stock</p>';
+            }
+            const cardExtra = isOutOfStock
+                ? 'style="opacity:0.5; cursor:not-allowed; pointer-events:none;"'
+                : 'onclick="addProductToOrder(' + p.id + ', \'' + escapeJs(p.name) + '\', ' + p.price + ')"';
+
+            return '<div class="product-card" ' + cardExtra + '>'
                 + '<div style="height:80px; background:linear-gradient(135deg,#fef2f2,#fee2e2); border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:10px; overflow:hidden; position:relative;">'
                 + imageHtml
                 + '</div>'
                 + '<p style="font-size:12px; font-weight:700; color:#0f172a; margin:0 0 4px; line-height:1.3; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;">' + escapeHtml(p.name) + '</p>'
                 + '<p style="font-size:14px; font-weight:900; color:#dc2626; margin:0;">Rs. ' + p.price.toFixed(2) + '</p>'
+                + stockBadge
                 + '</div>';
         }).join('');
     }
@@ -839,6 +884,12 @@
             return;
         }
 
+        // Check stock before adding
+        if (stockCache.hasOwnProperty(productId) && stockCache[productId] <= 0) {
+            toast('This item is out of stock', 'error');
+            return;
+        }
+
         // Optimistic update
         const existing = currentOrder.items.find(function(i) { return i.product_id === productId; });
         if (existing) {
@@ -850,8 +901,13 @@
                 unit_price: price, quantity: 1, subtotal: price, kitchen_notes: null
             });
         }
+        // Deduct from stock cache
+        if (stockCache.hasOwnProperty(productId)) {
+            stockCache[productId] = Math.max(0, stockCache[productId] - 1);
+        }
         recalcOrderTotals();
         renderBill();
+        renderProducts();
 
         const res = await fetch('{{ route("pos.item.add", ":id") }}'.replace(':id', currentOrder.id), {
             method: 'POST',
@@ -862,6 +918,9 @@
         if (data.success) {
             await syncOrder();
         } else {
+            // Restore stock on failure
+            if (stockCache.hasOwnProperty(productId)) stockCache[productId]++;
+            renderProducts();
             toast('Failed to add item to order', 'error');
         }
     }
@@ -879,39 +938,152 @@
     }
 
     async function increaseQty(itemId) {
+        if (qtyLock[itemId]) return;
         const item = currentOrder.items.find(function(i) { return i.id === itemId; });
         if (!item) return;
+
+        if (stockCache.hasOwnProperty(item.product_id) && stockCache[item.product_id] <= 0) {
+            toast('No more stock available for this item', 'error');
+            return;
+        }
+
+        qtyLock[itemId] = true;
+        if (stockCache.hasOwnProperty(item.product_id)) stockCache[item.product_id]--;
         item.quantity++;
-        item.subtotal = item.unit_price * item.quantity;
+        item.subtotal = item.unit_price * item.quantity * (1 - (item.discount_percent || 0) / 100);
         recalcOrderTotals();
         renderBill();
+        renderProducts();
         await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantity: item.quantity })
+            body: JSON.stringify({ quantity: item.quantity, discount_percent: item.discount_percent || 0 })
+        });
+        await syncOrder();
+        delete qtyLock[itemId];
+    }
+
+    async function decreaseQty(itemId) {
+        if (qtyLock[itemId]) return;
+        const item = currentOrder.items.find(function(i) { return i.id === itemId; });
+        if (!item || item.quantity <= 1) return;
+
+        qtyLock[itemId] = true;
+        if (stockCache.hasOwnProperty(item.product_id)) stockCache[item.product_id]++;
+        item.quantity--;
+        item.subtotal = item.unit_price * item.quantity * (1 - (item.discount_percent || 0) / 100);
+        recalcOrderTotals();
+        renderBill();
+        renderProducts();
+        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity: item.quantity, discount_percent: item.discount_percent || 0 })
+        });
+        await syncOrder();
+        delete qtyLock[itemId];
+    }
+
+    async function setQty(itemId, rawValue) {
+        if (qtyLock[itemId]) return;
+        const item = currentOrder.items.find(function(i) { return i.id === itemId; });
+        if (!item) return;
+
+        let newQty = Math.max(1, parseInt(rawValue) || 1);
+        const diff = newQty - item.quantity;
+
+        // Enforce stock cap when increasing
+        if (diff > 0 && stockCache.hasOwnProperty(item.product_id)) {
+            if (stockCache[item.product_id] < diff) {
+                newQty = item.quantity + Math.max(0, stockCache[item.product_id]);
+                if (newQty === item.quantity) {
+                    toast('No more stock available for this item', 'error');
+                    renderBill();
+                    return;
+                }
+                toast('Quantity limited to available stock', 'error');
+            }
+        }
+
+        qtyLock[itemId] = true;
+        if (stockCache.hasOwnProperty(item.product_id)) {
+            stockCache[item.product_id] -= (newQty - item.quantity);
+            stockCache[item.product_id] = Math.max(0, stockCache[item.product_id]);
+        }
+        item.quantity = newQty;
+        item.subtotal = item.unit_price * newQty * (1 - (item.discount_percent || 0) / 100);
+        recalcOrderTotals();
+        renderBill();
+        renderProducts();
+        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity: newQty, discount_percent: item.discount_percent || 0 })
+        });
+        await syncOrder();
+        delete qtyLock[itemId];
+    }
+
+    function toggleDiscountRow(itemId) {
+        if (openDiscountRows.has(itemId)) {
+            openDiscountRows.delete(itemId);
+        } else {
+            openDiscountRows.add(itemId);
+        }
+        renderBill();
+        // Auto-focus the input when opening
+        if (openDiscountRows.has(itemId)) {
+            const inp = document.getElementById('disc-' + itemId);
+            if (inp) { inp.focus(); inp.select(); }
+        }
+    }
+
+    async function applyItemDiscount(itemId) {
+        const item = currentOrder.items.find(function(i) { return i.id === itemId; });
+        if (!item) return;
+        const input = document.getElementById('disc-' + itemId);
+        const percent = Math.min(100, Math.max(0, parseFloat(input ? input.value : 0) || 0));
+
+        item.discount_percent = percent;
+        item.subtotal = item.unit_price * item.quantity * (1 - percent / 100);
+        openDiscountRows.delete(itemId);
+        recalcOrderTotals();
+        renderBill();
+
+        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity: item.quantity, discount_percent: percent })
         });
         await syncOrder();
     }
 
-    async function decreaseQty(itemId) {
+    async function clearItemDiscount(itemId) {
         const item = currentOrder.items.find(function(i) { return i.id === itemId; });
-        if (!item || item.quantity <= 1) return;
-        item.quantity--;
+        if (!item) return;
+        item.discount_percent = 0;
         item.subtotal = item.unit_price * item.quantity;
+        openDiscountRows.delete(itemId);
         recalcOrderTotals();
         renderBill();
+
         await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantity: item.quantity })
+            body: JSON.stringify({ quantity: item.quantity, discount_percent: 0 })
         });
         await syncOrder();
     }
 
     async function removeItem(itemId) {
+        const removedItem = currentOrder.items.find(function(i) { return i.id === itemId; });
+        if (removedItem && stockCache.hasOwnProperty(removedItem.product_id)) {
+            stockCache[removedItem.product_id] += removedItem.quantity;
+        }
         currentOrder.items = currentOrder.items.filter(function(i) { return i.id !== itemId; });
         recalcOrderTotals();
         renderBill();
+        renderProducts();
         await fetch('{{ route("pos.item.remove", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'DELETE',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
@@ -981,43 +1153,101 @@
                 '<p style="text-align:center; color:#94a3b8; font-size:13px; padding:32px 0;"><i class="fas fa-plus-circle" style="display:block; font-size:24px; margin-bottom:8px;"></i>No items yet — tap a product</p>';
         } else {
             document.getElementById('billItems').innerHTML = currentOrder.items.map(function(item) {
+                const discPercent   = item.discount_percent || 0;
+                const discRowOpen   = item.id && openDiscountRows.has(item.id);
+                const atStockLimit  = stockCache.hasOwnProperty(item.product_id) && stockCache[item.product_id] <= 0;
+
+                // Discount badge next to product name
+                const discBadge = discPercent > 0
+                    ? '<span style="font-size:9px; background:#fef3c7; color:#92400e; border-radius:4px; padding:1px 5px; font-weight:700; white-space:nowrap; flex-shrink:0;">-' + discPercent + '%</span>'
+                    : '';
+
+                // Editable quantity input (replaces static span)
+                const qtyControl = item.id
+                    ? '<input type="number" min="1" value="' + item.quantity + '" '
+                      + 'style="width:38px; text-align:center; border:1.5px solid #e2e8f0; border-radius:6px; font-size:13px; font-weight:800; color:#0f172a; padding:2px 0; outline:none; background:#fff;" '
+                      + 'onblur="setQty(' + item.id + ', this.value)" '
+                      + 'onkeydown="if(event.key===\'Enter\'){this.blur();event.preventDefault();}" '
+                      + 'onclick="this.select();event.stopPropagation();" />'
+                    : '<span style="min-width:22px; text-align:center; font-size:13px; font-weight:800; color:#0f172a;">' + item.quantity + '</span>';
+
+                const decBtn = item.id
+                    ? '<button type="button" class="qty-btn" onclick="decreaseQty(' + item.id + ')">−</button>'
+                    : '<button type="button" class="qty-btn" style="opacity:0.4;" disabled>−</button>';
+                const incBtn = item.id
+                    ? '<button type="button" class="qty-btn" onclick="increaseQty(' + item.id + ')"' + (atStockLimit ? ' disabled title="No more stock" style="opacity:0.4; cursor:not-allowed;"' : '') + '>+</button>'
+                    : '<button type="button" class="qty-btn" style="opacity:0.4;" disabled>+</button>';
+
+                const stockLeft = stockCache.hasOwnProperty(item.product_id)
+                    ? '<div style="font-size:9px; color:#94a3b8; text-align:center; margin-top:2px;">' + stockCache[item.product_id] + ' left</div>'
+                    : '';
+
                 const noteHtml = item.kitchen_notes
                     ? '<p style="font-size:10px; color:#f59e0b; margin:2px 0 0;"><i class="fas fa-note-sticky" style="margin-right:3px;"></i>' + escapeHtml(item.kitchen_notes) + '</p>'
                     : '';
+
                 const removeBtn = item.id
-                    ? '<button onclick="removeItem(' + item.id + ')" style="font-size:10px; color:#ef4444; background:none; border:none; cursor:pointer; padding:0; margin-top:3px;"><i class="fas fa-trash"></i> Remove</button>'
+                    ? '<button type="button" onclick="removeItem(' + item.id + ')" style="font-size:10px; color:#ef4444; background:none; border:none; cursor:pointer; padding:0; margin-top:2px; display:block;"><i class="fas fa-trash"></i> Remove</button>'
                     : '';
-                const decBtn = item.id
-                    ? '<button class="qty-btn" onclick="decreaseQty(' + item.id + ')">−</button>'
-                    : '<button class="qty-btn" style="opacity:0.4;" disabled>−</button>';
-                const incBtn = item.id
-                    ? '<button class="qty-btn" onclick="increaseQty(' + item.id + ')">+</button>'
-                    : '<button class="qty-btn" style="opacity:0.4;" disabled>+</button>';
+
+                // Discount toggle button (amber when active, grey when not)
+                const discBtnStyle = discPercent > 0
+                    ? 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;'
+                    : 'background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;';
+                const discBtn = item.id
+                    ? '<button type="button" onclick="toggleDiscountRow(' + item.id + ')" '
+                      + 'style="font-size:9px; ' + discBtnStyle + ' border-radius:5px; padding:2px 6px; cursor:pointer; font-weight:700; margin-top:3px; display:block;">% off</button>'
+                    : '';
+
+                // Inline discount input row (only when open)
+                const discRowHtml = (discRowOpen && item.id)
+                    ? '<div style="display:flex; align-items:center; gap:6px; margin-top:6px; padding:7px 10px; background:#fffbeb; border-radius:8px; border:1px solid #fde68a; flex-wrap:wrap;">'
+                      + '<span style="font-size:11px; font-weight:600; color:#92400e;">Discount:</span>'
+                      + '<input type="number" id="disc-' + item.id + '" value="' + discPercent + '" min="0" max="100" step="1" placeholder="0" '
+                      + 'style="width:52px; font-size:12px; font-weight:700; border:1.5px solid #fde68a; border-radius:6px; padding:3px 6px; outline:none; text-align:center; background:#fff;" '
+                      + 'onkeydown="if(event.key===\'Enter\'){applyItemDiscount(' + item.id + ');event.preventDefault();}" />'
+                      + '<span style="font-size:12px; color:#92400e; font-weight:700;">%</span>'
+                      + '<button type="button" onclick="applyItemDiscount(' + item.id + ')" '
+                      + 'style="font-size:11px; background:#16a34a; color:#fff; border:none; border-radius:6px; padding:4px 10px; cursor:pointer; font-weight:700;">✓ Apply</button>'
+                      + (discPercent > 0
+                          ? '<button type="button" onclick="clearItemDiscount(' + item.id + ')" style="font-size:11px; background:#e2e8f0; color:#374151; border:none; border-radius:6px; padding:4px 8px; cursor:pointer; font-weight:600;">Clear</button>'
+                          : '')
+                      + '</div>'
+                    : '';
 
                 let thumbHtml = '';
                 if (item.image) {
-                    thumbHtml = '<div style="width:48px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#f1f5f9; margin-right:10px;">'
-                        + '<img src="/storage/' + item.image + '" alt="' + escapeHtml(item.product_name) + '" '
-                        + 'style="width:100%; height:100%; object-fit:cover;">'
+                    thumbHtml = '<div style="width:44px; height:44px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#f1f5f9;">'
+                        + '<img src="/storage/' + item.image + '" alt="' + escapeHtml(item.product_name) + '" style="width:100%; height:100%; object-fit:cover;">'
                         + '</div>';
                 }
 
-                return '<div class="bill-item" style="align-items:flex-start;">'
+                return '<div style="padding:10px 0; border-bottom:1px solid #f1f5f9;">'
+                    // Main row
+                    + '<div style="display:flex; align-items:flex-start; gap:8px;">'
                     + thumbHtml
                     + '<div style="flex:1; min-width:0;">'
-                    + '<p style="font-size:13px; font-weight:700; color:#0f172a; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(item.product_name) + '</p>'
+                    + '<div style="display:flex; align-items:flex-start; gap:4px; overflow:hidden;">'
+                    + '<p style="font-size:13px; font-weight:700; color:#0f172a; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(item.product_name) + '</p>'
+                    + discBadge
+                    + '</div>'
                     + '<p style="font-size:11px; color:#94a3b8; margin:2px 0 0;">Rs. ' + item.unit_price.toFixed(2) + ' each</p>'
                     + noteHtml
                     + '</div>'
-                    + '<div style="display:flex; align-items:center; gap:5px; flex-shrink:0;">'
-                    + decBtn
-                    + '<span style="min-width:22px; text-align:center; font-size:13px; font-weight:800; color:#0f172a;">' + item.quantity + '</span>'
-                    + incBtn
+                    + '<div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0;">'
+                    + '<div style="display:flex; align-items:center; gap:4px;">'
+                    + decBtn + qtyControl + incBtn
                     + '</div>'
-                    + '<div style="min-width:72px; text-align:right; flex-shrink:0;">'
+                    + stockLeft
+                    + '</div>'
+                    + '<div style="min-width:68px; text-align:right; flex-shrink:0;">'
                     + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0;">Rs. ' + item.subtotal.toFixed(2) + '</p>'
                     + removeBtn
+                    + discBtn
                     + '</div>'
+                    + '</div>'
+                    // Discount input row (toggleable)
+                    + discRowHtml
                     + '</div>';
             }).join('');
         }
@@ -1129,13 +1359,24 @@
         if (!currentOrder || !currentOrder.id || !currentOrder.items || !currentOrder.items.length) {
             toast('No items in order', 'error'); return;
         }
+
+        // Cash requires an explicit amount entered
+        if (selectedPaymentMethod === 'cash') {
+            const cashEntered = parseFloat(document.getElementById('amountPaid').value);
+            if (!cashEntered || cashEntered <= 0) {
+                toast('Please enter the cash amount received', 'error');
+                document.getElementById('amountPaid').focus();
+                return;
+            }
+        }
+
         await saveCustomerInfo();
 
         const subtotal    = currentOrder.subtotal || 0;
         const discountVal = calcDiscount(subtotal);
         const total       = Math.max(0, subtotal - discountVal);
         const amountPaid  = selectedPaymentMethod === 'cash'
-            ? (parseFloat(document.getElementById('amountPaid').value) || total)
+            ? parseFloat(document.getElementById('amountPaid').value)
             : total;
 
         const res = await fetch('{{ route("pos.order.pay", ":id") }}'.replace(':id', currentOrder.id), {
@@ -1156,8 +1397,8 @@
         if (data.success) {
             showPaidBill(data);
             printBillContent();
-            await loadTables();
-            toast('Payment received & bill printed — table closed!', 'success');
+            await loadTables();          // refreshes tables panel (table now shows as Available)
+            toast('Payment received — table closed!', 'success');
         } else {
             toast(data.error || 'Payment failed', 'error');
         }
@@ -1166,8 +1407,9 @@
     function showPaidBill(d) {
         const methodLabel = { cash:'Cash', card:'Card', bank_transfer:'Bank Transfer', mixed:'Mixed' };
         const itemRows = d.items.map(function(i) {
+            const discLabel = i.discount_percent > 0 ? ' <span style="font-size:10px;">(-' + i.discount_percent + '%)</span>' : '';
             return '<div style="display:flex; justify-content:space-between; font-size:12px; margin:5px 0;">'
-                + '<span>' + escapeHtml(i.product_name) + ' × ' + i.quantity + '</span>'
+                + '<span>' + escapeHtml(i.product_name) + ' × ' + i.quantity + discLabel + '</span>'
                 + '<span>Rs. ' + i.subtotal.toFixed(2) + '</span></div>';
         }).join('');
 
@@ -1319,6 +1561,7 @@
         });
         toast('Order held');
         resetOrder();
+        await loadTables();
         loadHeldOrders(true);
     }
 
@@ -1391,7 +1634,16 @@
             return;
         }
 
+        // Restore stock cache for items being discarded
+        if (currentOrder && currentOrder.items) {
+            currentOrder.items.forEach(function(item) {
+                if (item.product_id && stockCache.hasOwnProperty(item.product_id)) {
+                    stockCache[item.product_id] += item.quantity;
+                }
+            });
+        }
         resetOrder();
+        renderProducts();
         await loadTables();
         toast('Table deselected', 'success');
     }
@@ -1427,8 +1679,10 @@
         });
         document.getElementById('cashSection').style.display = 'flex';
         document.querySelectorAll('.table-card.expanded').forEach(function(c) { c.classList.remove('expanded'); });
-        document.querySelectorAll('.table-card.selected').forEach(function(c) { c.classList.remove('selected'); });
-        loadTables();
+        document.querySelectorAll('.table-card.selected').forEach(function(c) {
+            c.classList.remove('selected', 'occupied');
+            c.classList.add('available');
+        });
     }
 
     function printReceipt(html) {
@@ -1484,6 +1738,21 @@
     }
 
     window.addEventListener('load', initPos);
+
+    // ── Numeric-only guard for amount / quantity inputs ──
+    document.addEventListener('DOMContentLoaded', function () {
+        var CTRL_KEYS = [8, 9, 13, 27, 46, 35, 36, 37, 38, 39, 40];
+        var DIGITS    = function (k) { return (k >= 48 && k <= 57) || (k >= 96 && k <= 105); };
+        var SHORTCUT  = function (e) { return (e.ctrlKey || e.metaKey) && [65, 67, 86, 88, 90].includes(e.keyCode); };
+        document.querySelectorAll('input[type="number"]').forEach(function (input) {
+            input.addEventListener('keydown', function (e) {
+                if (CTRL_KEYS.includes(e.keyCode) || SHORTCUT(e) || DIGITS(e.keyCode)) return;
+                if (e.keyCode === 190 || e.keyCode === 110) return; // decimal point
+                if (e.keyCode === 189 || e.keyCode === 109) return; // minus
+                e.preventDefault();
+            });
+        });
+    });
 </script>
 </body>
 </html>
