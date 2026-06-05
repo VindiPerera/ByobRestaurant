@@ -16,6 +16,7 @@ class Product extends Model
         'price',
         'selling_price',
         'quantity',
+        'low_stock_threshold',
         'is_unlimited_stock',
         'status',
         'barcode',
@@ -57,5 +58,13 @@ class Product extends Model
     public function stockMovements()
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function isLowStock(): bool
+    {
+        if ($this->is_unlimited_stock || is_null($this->low_stock_threshold)) {
+            return false;
+        }
+        return $this->quantity <= $this->low_stock_threshold;
     }
 }

@@ -13,6 +13,15 @@
                 <a href="{{ route('categories.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-semibold transition-colors">
                     <i class="fas fa-tags mr-2"></i>Categories
                 </a>
+                <a href="{{ route('inventory.dashboard') }}" class="relative inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-colors {{ $lowStockCount > 0 ? 'bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-900' }}">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    Low Stock Alerts
+                    @if($lowStockCount > 0)
+                        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-xs font-bold leading-none">
+                            {{ $lowStockCount > 99 ? '99+' : $lowStockCount }}
+                        </span>
+                    @endif
+                </a>
                 <a href="{{ route('stock.adjustments.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-semibold transition-colors">
                     <i class="fas fa-layer-group mr-2"></i>Stock Adjustments
                 </a>
@@ -74,10 +83,15 @@
                                     <td class="px-6 py-4 text-sm text-gray-600">
                                         @if($product->is_unlimited_stock)
                                             <span class="px-3 py-1 rounded-lg bg-purple-100 text-purple-800">Unlimited</span>
-                                        @else
-                                            <span class="px-3 py-1 rounded-lg {{ $product->quantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-red-100 text-red-800' }}">
+                                        @elseif($product->quantity == 0)
+                                            <span class="px-3 py-1 rounded-lg bg-red-100 text-red-800 font-semibold">0</span>
+                                        @elseif($product->isLowStock())
+                                            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-100 text-amber-800 font-semibold">
                                                 {{ $product->quantity }}
+                                                <i class="fas fa-triangle-exclamation text-xs"></i>
                                             </span>
+                                        @else
+                                            <span class="px-3 py-1 rounded-lg bg-blue-100 text-blue-800">{{ $product->quantity }}</span>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-sm">

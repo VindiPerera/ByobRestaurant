@@ -5,8 +5,8 @@
 @section('content')
     <div>
         <div class="mb-8">
-            <div class="flex items-center">
-                <a href="{{ route('inventory.index') }}" class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mr-3 flex-shrink-0" title="Back">
+            <div>
+                <a href="{{ route('inventory.index') }}" class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 transition-colors mb-2" title="Back">
                     <i class="fas fa-arrow-left text-sm"></i>
                 </a>
                 <h1 class="text-4xl font-bold text-gray-900">Edit Product</h1>
@@ -124,6 +124,17 @@
                     </div>
 
                     <div>
+                        <label for="low_stock_threshold" class="block text-sm font-semibold text-gray-900 mb-2">Low Stock Threshold</label>
+                        <input type="number" name="low_stock_threshold" id="low_stock_threshold" value="{{ old('low_stock_threshold', $product->low_stock_threshold) }}" min="0"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent {{ $errors->has('low_stock_threshold') ? 'border-red-600' : '' }}"
+                            placeholder="e.g. 5">
+                        @error('low_stock_threshold')
+                            <p class="text-red-600 text-sm mt-2">{{ $message }}</p>
+                        @enderror
+                        <p class="text-xs text-gray-500 mt-2">Alert when stock falls to or below this number.</p>
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-semibold text-gray-900 mb-2">Unlimited Stock</label>
                         <label class="inline-flex items-center gap-2 text-sm text-gray-700">
                             <input type="checkbox" name="is_unlimited_stock" value="1" {{ old('is_unlimited_stock', $product->is_unlimited_stock) ? 'checked' : '' }}
@@ -209,6 +220,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         const unlimitedCheckbox = document.querySelector('input[name="is_unlimited_stock"]');
         const quantityInput = document.getElementById('quantity');
+        const thresholdInput = document.getElementById('low_stock_threshold');
 
         const toggleQuantity = () => {
             const isUnlimited = unlimitedCheckbox.checked;
@@ -216,6 +228,10 @@
             quantityInput.required = !isUnlimited;
             if (isUnlimited) {
                 quantityInput.value = 0;
+                thresholdInput.disabled = true;
+                thresholdInput.value = '';
+            } else {
+                thresholdInput.disabled = false;
             }
         };
 

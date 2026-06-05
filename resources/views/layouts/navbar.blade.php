@@ -15,6 +15,16 @@
 
             <div class="nav-divider hidden sm:block"></div>
 
+            <!-- Low stock bell -->
+            <a href="{{ route('inventory.dashboard') }}" class="nav-bell" title="{{ $lowStockCount > 0 ? $lowStockCount . ' low stock alert(s)' : 'Inventory' }}">
+                <i class="fas fa-bell" style="font-size:16px; color:{{ $lowStockCount > 0 ? '#f59e0b' : '#64748b' }};"></i>
+                @if($lowStockCount > 0)
+                    <span class="nav-bell-badge">{{ $lowStockCount > 99 ? '99+' : $lowStockCount }}</span>
+                @endif
+            </a>
+
+            <div class="nav-divider hidden sm:block"></div>
+
             <!-- User pill + dropdown -->
             <div style="position:relative;">
                 <button class="nav-user-pill" onclick="toggleDropdown()" type="button">
@@ -110,6 +120,18 @@
     .nav-dropdown .dd-danger { color: #f87171; }
     .nav-dropdown .dd-danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; }
     .nav-dropdown hr { border-color: rgba(255,255,255,0.08); margin: 4px 0; }
+    .nav-bell {
+        position: relative; display: flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.1); cursor: pointer; text-decoration: none; transition: all 0.18s;
+    }
+    .nav-bell:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.2); }
+    .nav-bell-badge {
+        position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px;
+        background: #f59e0b; color: #fff; font-size: 10px; font-weight: 700;
+        border-radius: 9px; display: flex; align-items: center; justify-content: center;
+        padding: 0 4px; border: 2px solid #0f172a;
+    }
 </style>
 
 <script>

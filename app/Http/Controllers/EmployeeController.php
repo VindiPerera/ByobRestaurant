@@ -72,6 +72,11 @@ class EmployeeController extends Controller
         return redirect()->route('employees.index')->with('success', 'Employee created successfully');
     }
 
+    public function show(Employee $employee)
+    {
+        return redirect()->route('employees.edit', $employee);
+    }
+
     public function edit(Employee $employee)
     {
         $roles = Role::all();
@@ -112,7 +117,7 @@ class EmployeeController extends Controller
                 $updateData['password'] = Hash::make($validated['password']);
             }
 
-            $employee->user()->update($updateData);
+            $employee->user->update($updateData);
 
             $employee->update([
                 'phone' => $validated['phone'],

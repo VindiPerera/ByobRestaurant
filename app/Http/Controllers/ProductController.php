@@ -15,10 +15,34 @@ class ProductController extends Controller
     {
         $products = Product::with(['category', 'supplierRecord'])->paginate(10);
         $modules = $this->currentUser()->role->modules()->get();
+        $lowStockCount = Product::where('is_unlimited_stock', false)
+            ->whereNotNull('low_stock_threshold')
+            ->whereRaw('quantity <= low_stock_threshold')
+            ->count();
         return view('modules.products-list', [
             'products' => $products,
             'modules' => $modules,
+            'lowStockCount' => $lowStockCount,
         ]);
+    }
+
+    public function dashboard()
+    {
+        $modules = $this->currentUser()->role->modules()->get();
+        $totalProducts = Product::count();
+        $activeProducts = Product::where('status', 'active')->count();
+        $outOfStock = Product::where('is_unlimited_stock', false)->where('quantity', 0)->count();
+        $lowStockProducts = Product::where('is_unlimited_stock', false)
+            ->whereNotNull('low_stock_threshold')
+            ->whereRaw('quantity <= low_stock_threshold')
+            ->where('quantity', '>', 0)
+            ->with('category')
+            ->orderBy('quantity')
+            ->get();
+        $recentProducts = Product::with('category')->latest()->take(8)->get();
+        return view('modules.inventory', compact(
+            'modules', 'totalProducts', 'activeProducts', 'outOfStock', 'lowStockProducts', 'recentProducts'
+        ));
     }
 
     public function create()
@@ -46,6 +70,7 @@ class ProductController extends Controller
             'cost_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'quantity' => $isUnlimitedStock ? 'nullable|integer|min:0' : 'required|integer|min:0',
+            'low_stock_threshold' => 'nullable|integer|min:0',
             'is_unlimited_stock' => 'nullable|boolean',
             'barcode' => 'nullable|string|unique:products',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',
@@ -104,6 +129,7 @@ class ProductController extends Controller
             'cost_price' => 'nullable|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'quantity' => $isUnlimitedStock ? 'nullable|integer|min:0' : 'required|integer|min:0',
+            'low_stock_threshold' => 'nullable|integer|min:0',
             'is_unlimited_stock' => 'nullable|boolean',
             'barcode' => 'nullable|string|unique:products,barcode,' . $product->id,
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp,gif|max:2048',

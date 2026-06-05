@@ -65,6 +65,13 @@ class StockAdjustmentController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        $product->refresh();
+        if ($validated['change_type'] === 'decrease' && $product->isLowStock()) {
+            return redirect()->route('stock.adjustments.index')
+                ->with('success', 'Stock adjusted successfully')
+                ->with('low_stock_warning', "Low stock alert: \"{$product->name}\" has only {$product->quantity} unit(s) remaining (threshold: {$product->low_stock_threshold}).");
+        }
+
         return redirect()->route('stock.adjustments.index')->with('success', 'Stock adjusted successfully');
     }
 }

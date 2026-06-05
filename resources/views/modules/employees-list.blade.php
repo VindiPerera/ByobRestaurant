@@ -37,21 +37,21 @@
                         <tbody class="divide-y divide-gray-200">
                             @foreach($employees as $employee)
                                 <tr class="hover:bg-gray-50 transition-colors">
-                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $employee->user->name }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $employee->user->email }}</td>
+                                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $employee->user?->name ?? '—' }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-600">{{ $employee->user?->email ?? '—' }}</td>
                                     <td class="px-6 py-4 text-sm">
                                         <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                                            {{ $employee->user->role->name ?? 'No Role' }}
+                                            {{ $employee->user?->role?->name ?? 'No Role' }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-sm">
-                                        <button type="button" class="text-purple-600 hover:text-purple-800 font-semibold" onclick="openPasswordModal({{ $employee->user->id }}, '{{ $employee->user->name }}')">
+                                        <button type="button" class="text-purple-600 hover:text-purple-800 font-semibold" onclick="openPasswordModal({{ $employee->user?->id ?? 0 }}, '{{ addslashes($employee->user?->name ?? '') }}')"  @if(!$employee->user) disabled @endif>
                                             <i class="fas fa-key mr-1"></i>Change Password
                                         </button>
                                     </td>
                                     <td class="px-6 py-4 text-sm">
-                                        <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $employee->user->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                            {{ ucfirst($employee->user->status) }}
+                                        <span class="px-3 py-1 rounded-full text-xs font-semibold {{ ($employee->user?->status === 'active') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                            {{ ucfirst($employee->user?->status ?? 'unknown') }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-center">

@@ -58,6 +58,13 @@ class WastageController extends Controller
             $wastage->id
         );
 
+        $product->refresh();
+        if ($product->isLowStock()) {
+            return redirect()->route('wastage.index')
+                ->with('success', 'Wastage recorded successfully')
+                ->with('low_stock_warning', "Low stock alert: \"{$product->name}\" has only {$product->quantity} unit(s) remaining (threshold: {$product->low_stock_threshold}).");
+        }
+
         return redirect()->route('wastage.index')->with('success', 'Wastage recorded successfully');
     }
 

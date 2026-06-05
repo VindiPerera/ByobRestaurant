@@ -12,10 +12,20 @@ class ModuleSeeder extends Seeder
     {
         $modules = [
             [
+                'name' => 'POS & Billing',
+                'description' => 'Point of sale and billing management',
+                'icon' => 'cash-register',
+                'route' => 'pos.index',
+                'sort_order' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
                 'name' => 'Customer Management',
                 'description' => 'Manage customers and customer information',
                 'icon' => 'users',
                 'route' => 'customers.index',
+                'sort_order' => 2,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -24,6 +34,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Manage product categories',
                 'icon' => 'tags',
                 'route' => 'categories.index',
+                'sort_order' => 3,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -32,6 +43,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Manage employees and staff',
                 'icon' => 'user-tie',
                 'route' => 'employees.index',
+                'sort_order' => 4,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -40,6 +52,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Manage products and inventory',
                 'icon' => 'boxes',
                 'route' => 'inventory.index',
+                'sort_order' => 5,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -48,6 +61,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Manage suppliers and purchases',
                 'icon' => 'truck',
                 'route' => 'suppliers.index',
+                'sort_order' => 6,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -56,14 +70,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Track product wastage and losses',
                 'icon' => 'trash-alt',
                 'route' => 'wastage.index',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
-            [
-                'name' => 'POS & Billing',
-                'description' => 'Point of sale and billing management',
-                'icon' => 'cash-register',
-                'route' => 'pos.index',
+                'sort_order' => 7,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -72,6 +79,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'Generate and view reports',
                 'icon' => 'chart-bar',
                 'route' => 'reports.index',
+                'sort_order' => 8,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -80,6 +88,7 @@ class ModuleSeeder extends Seeder
                 'description' => 'System settings and configuration',
                 'icon' => 'cog',
                 'route' => 'settings.index',
+                'sort_order' => 9,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -88,7 +97,7 @@ class ModuleSeeder extends Seeder
         DB::table('modules')->upsert(
             $modules,
             ['name'],
-            ['description', 'icon', 'route', 'updated_at']
+            ['description', 'icon', 'route', 'sort_order', 'updated_at']
         );
 
         $adminId = DB::table('roles')->where('name', 'Admin')->first()->id;

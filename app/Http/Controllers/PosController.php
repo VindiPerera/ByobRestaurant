@@ -191,10 +191,17 @@ class PosController extends Controller
 
         $this->updateOrderTotals($order);
 
+        $product->refresh();
+        $lowStockAlert = null;
+        if ($product->isLowStock()) {
+            $lowStockAlert = "\"{$product->name}\" is low on stock — only {$product->quantity} unit(s) left.";
+        }
+
         return response()->json([
             'success' => true,
             'item_id' => $item->id,
             'message' => $product->name . ' added to order',
+            'low_stock_alert' => $lowStockAlert,
         ]);
     }
 
