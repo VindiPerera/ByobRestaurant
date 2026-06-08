@@ -559,7 +559,10 @@
                 const res = await fetch('{{ route("shifts.active") }}');
                 const data = await res.json();
                 if (data.active && data.shift) {
-                    document.getElementById('posTotalSales').textContent = 'Rs. ' + parseFloat(data.shift.total_sales).toFixed(2);
+                    const el = document.getElementById('posTotalSales');
+                    if (el) {
+                        el.textContent = 'Rs. ' + parseFloat(data.shift.total_sales).toFixed(2);
+                    }
                 }
             } catch (e) {
                 console.error('Error updating shift status:', e);
@@ -1713,6 +1716,11 @@
             return;
         }
 
+        if (!data.items || !Array.isArray(data.items)) {
+            toast('No items to print', 'warning');
+            return;
+        }
+
         document.getElementById('kotOrderNumber').textContent = 'Order #' + data.order_number;
         document.getElementById('kotTableNumber').textContent = 'Table ' + (currentTable ? currentTable.table_number : '—');
         renderKotItems(data.items);
@@ -1729,6 +1737,11 @@
 
         if (!data.success) {
             toast(data.message || 'KOT already printed', 'warning');
+            return;
+        }
+
+        if (!data.items || !Array.isArray(data.items)) {
+            toast('No new items to print', 'warning');
             return;
         }
 
