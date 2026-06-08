@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -57,5 +56,10 @@ class User extends Authenticatable
     public function employee()
     {
         return $this->hasOne(\App\Models\Employee::class);
+    }
+
+    public function shifts()
+    {
+        return $this->hasMany(\App\Models\Shift::class);
     }
 }

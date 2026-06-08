@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\RestaurantTable;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Shift;
+use App\Models\ShiftTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -19,11 +21,16 @@ class PosController extends Controller
         $products = Product::where('status', 'active')->get();
         $modules = $this->currentUser()->role->modules()->get();
 
+        $activeShift = Shift::where('user_id', auth()->id())
+            ->where('status', 'active')
+            ->first();
+
         return view('modules.pos', [
             'tables' => $tables,
             'categories' => $categories,
             'products' => $products,
             'modules' => $modules,
+            'activeShift' => $activeShift,
         ]);
     }
 
@@ -468,6 +475,32 @@ class PosController extends Controller
             'change_amount'   => $change,
             'printed_at'      => now(),
         ]);
+
+        // Record transaction in active shift
+        $activeShift = Shift::where('user_id', auth()->id())
+            ->where('status', 'active')
+            ->first();
+
+        if ($activeShift) {
+            ShiftTransaction::create([
+                'shift_id' => $activeShift->id,
+                'order_id' => $order->id,
+                'transaction_type' => 'sale',
+                'amount' => $total,
+                'payment_method' => $validated['payment_method'],
+                'description' => "Order #{$order->order_number}",
+            ]);
+
+            if ($discount > 0) {
+                ShiftTransaction::create([
+                    'shift_id' => $activeShift->id,
+                    'order_id' => $order->id,
+                    'transaction_type' => 'discount',
+                    'amount' => $discount,
+                    'description' => "Discount on Order #{$order->order_number}",
+                ]);
+            }
+        }
 
         // Only update table status if this order is for dine-in (has a table_id)
         if ($order->table_id) {

@@ -171,10 +171,51 @@
 
 @include('layouts.navbar')
 
+<!-- Shift Status Banner - Only shows when shift is active -->
+@if($activeShift)
+<div id="shiftBanner" style="background: #f0fdf4; border-bottom: 2px solid #22c55e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 40; margin-top: 64px;">
+    <div style="display: flex; align-items: center; gap: 12px; flex-grow: 1;">
+        <div style="width: 10px; height: 10px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite;"></div>
+        <div style="display: flex; align-items: center; gap: 16px; flex-grow: 1;">
+            <div>
+                <p style="margin: 0; font-size: 12px; color: #65a30d; font-weight: 600;">SHIFT ACTIVE</p>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #166534; font-weight: 600;">
+                    Started: {{ $activeShift->started_at->format('h:i A') }}
+                </p>
+            </div>
+            <div style="display: flex; gap: 24px; align-items: center; flex-grow: 1;">
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #65a30d;">Opening Balance</p>
+                    <p style="margin: 2px 0 0 0; font-size: 14px; font-weight: 700; color: #166534;">Rs. {{ number_format($activeShift->opening_balance, 2) }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; font-size: 11px; color: #65a30d;">Total Sales</p>
+                    <p id="posTotalSales" style="margin: 2px 0 0 0; font-size: 14px; font-weight: 700; color: #166534;">Rs. 0.00</p>
+                </div>
+            </div>
+        </div>
+        <a href="{{ route('shifts.index') }}" style="background: #dc2626; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 12px; white-space: nowrap;">
+            Close Shift
+        </a>
+    </div>
+</div>
+@endif
+
+<style>
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .5; }
+    }
+    #shiftBanner {
+        position: sticky;
+        top: 64px;
+    }
+</style>
+
 <!-- Hidden print area -->
 <div id="printArea"></div>
 
-<div class="pos-grid" style="margin-top: 64px; height: calc(100vh - 64px);">
+<div class="pos-grid" style="margin-top: 0; height: calc(100vh - 64px - 60px);">
 
     <!-- ════════════════════════════════════════
          COLUMN 1 — TABLES PANEL
@@ -452,6 +493,33 @@
     </div>
 </div>
 
+<!-- Shift Not Started Modal -->
+<div id="shiftModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 400px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 48px; margin-bottom: 12px;">
+                <i class="fas fa-exclamation-circle" style="color: #dc2626;"></i>
+            </div>
+            <h2 style="font-size: 18px; font-weight: 800; color: #0f172a; margin: 0 0 8px;">No Active Shift</h2>
+            <p style="font-size: 14px; color: #64748b; margin: 0;">You must start a shift before processing orders</p>
+        </div>
+        <div style="background: #f9fafb; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+            <p style="font-size: 12px; color: #64748b; margin: 0;">
+                <i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 6px;"></i>
+                Go to the Shifts & Till Management module to start your shift with an opening balance.
+            </p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="closeModal('shiftModal')" style="flex: 1; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; background: #fff; color: #374151; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                Cancel
+            </button>
+            <a href="{{ route('shifts.index') }}" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: #dc2626; color: #fff; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-arrow-right" style="margin-right: 6px;"></i> Go to Shifts
+            </a>
+        </div>
+    </div>
+</div>
+
 <!-- Toast notification -->
 <div id="toast"></div>
 
@@ -477,6 +545,23 @@
         await loadProducts();
         loadHeldOrders();
         setupEventListeners();
+        updateShiftStatus();
+        setInterval(updateShiftStatus, 15000); // Update every 15 seconds
+    }
+
+    // Update shift status in banner
+    async function updateShiftStatus() {
+        @if($activeShift)
+            try {
+                const res = await fetch('{{ route("shifts.active") }}');
+                const data = await res.json();
+                if (data.active && data.shift) {
+                    document.getElementById('posTotalSales').textContent = 'Rs. ' + parseFloat(data.shift.total_sales).toFixed(2);
+                }
+            } catch (e) {
+                console.error('Error updating shift status:', e);
+            }
+        @endif
     }
 
     // ═══════════════════════════════════════════
@@ -862,6 +947,13 @@
     // ═══════════════════════════════════════════
 
     async function addProductToOrder(productId, productName, price) {
+        // CHECK FOR ACTIVE SHIFT FIRST
+        const hasActiveShift = {{ $activeShift ? 'true' : 'false' }};
+        if (!hasActiveShift) {
+            showShiftModal();
+            return;
+        }
+
         if (!currentOrder || !currentOrder.id) {
             const selectEl = document.getElementById('orderTypeSelect');
             const orderType = selectEl ? selectEl.value : 'dine_in';
@@ -1786,6 +1878,7 @@
 
     function openModal(id)  { document.getElementById(id).classList.add('open'); }
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function showShiftModal() { openModal('shiftModal'); }
 
     function showLoading() { document.body.style.cursor = 'wait'; }
     function hideLoading() { document.body.style.cursor = 'default'; }

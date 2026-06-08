@@ -15,6 +15,7 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\QrMenuController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ShiftController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -67,6 +68,14 @@ Route::middleware('auth')->group(function () {
 
     // Placeholder routes for other modules
     Route::resource('suppliers', SupplierController::class)->except(['show']);
+
+    // Shift & Till Management routes
+    Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
+    Route::post('/shifts/start', [ShiftController::class, 'startShift'])->name('shifts.start');
+    Route::post('/shifts/close', [ShiftController::class, 'closeShift'])->name('shifts.close');
+    Route::get('/shifts/active', [ShiftController::class, 'getActiveShift'])->name('shifts.active');
+    Route::get('/shifts/{shift}', [ShiftController::class, 'getShiftDetails'])->name('shifts.details');
+    Route::post('/shifts/{shift}/transaction', [ShiftController::class, 'recordTransaction'])->name('shifts.transaction');
 
     // POS routes
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
