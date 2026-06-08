@@ -152,6 +152,7 @@ class PosController extends Controller
                     'discount_percent' => (float) $item->discount_percent,
                     'kitchen_notes' => $item->kitchen_notes,
                     'is_bar_item' => $item->is_bar_item,
+                    'kot_printed' => (bool) $item->kot_printed,
                     'image' => $item->product?->image,
                 ];
             }),
@@ -170,16 +171,22 @@ class PosController extends Controller
         $product = Product::find($validated['product_id']);
         $price = $product->selling_price ?? $product->price;
 
+        // Find any existing item for this product in the order
         $existingItem = OrderItem::where('order_id', $order->id)
             ->where('product_id', $product->id)
+            ->where('kot_printed', false)
             ->first();
 
         if ($existingItem) {
+            // If item exists and hasn't been printed yet, increase the quantity
             $existingItem->quantity += $validated['quantity'];
             $existingItem->subtotal = $existingItem->unit_price * $existingItem->quantity;
             $existingItem->save();
             $item = $existingItem;
         } else {
+            // Either new item or existing item that was already printed
+            // If item was already printed, create a new line item for the additional quantity
+            // Otherwise create the first line item
             $item = OrderItem::create([
                 'order_id' => $order->id,
                 'product_id' => $product->id,
@@ -189,6 +196,7 @@ class PosController extends Controller
                 'subtotal' => $price * $validated['quantity'],
                 'kitchen_notes' => $validated['kitchen_notes'] ?? null,
                 'is_bar_item' => $validated['is_bar_item'] ?? false,
+                'kot_printed' => false,
             ]);
         }
 
@@ -312,13 +320,30 @@ class PosController extends Controller
 
     public function printKot(Order $order)
     {
-        $order->update(['kot_printed_at' => now()]);
+        $order->load('items');
         $kitchenItems = $order->items->where('is_bar_item', false)->values();
+
+        // Get items that have NOT been printed yet (kot_printed = false)
+        $unprintedItems = $kitchenItems->filter(fn($item) => !$item->kot_printed);
+
+        if ($unprintedItems->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No new items to print. All items already sent to kitchen.',
+                'order_number' => $order->order_number,
+            ], 422);
+        }
+
+        // Get the IDs of unprinted items
+        $unprintedItemIds = $unprintedItems->pluck('id')->toArray();
+
+        // Mark these items as printed using query builder
+        OrderItem::whereIn('id', $unprintedItemIds)->update(['kot_printed' => true]);
 
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
-            'items' => $kitchenItems->map(fn($item) => [
+            'items' => $unprintedItems->map(fn($item) => [
                 'product_name' => $item->product_name,
                 'quantity' => $item->quantity,
                 'kitchen_notes' => $item->kitchen_notes,

@@ -16,6 +16,7 @@ class OrderItem extends Model
         'discount_percent',
         'kitchen_notes',
         'is_bar_item',
+        'kot_printed',
     ];
 
     protected $casts = [
@@ -23,6 +24,7 @@ class OrderItem extends Model
         'subtotal' => 'decimal:2',
         'discount_percent' => 'decimal:2',
         'is_bar_item' => 'boolean',
+        'kot_printed' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
