@@ -171,51 +171,11 @@
 
 @include('layouts.navbar')
 
-<!-- Shift Status Banner - Only shows when shift is active -->
-@if($activeShift)
-<div id="shiftBanner" style="background: #f0fdf4; border-bottom: 2px solid #22c55e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; z-index: 40; margin-top: 64px;">
-    <div style="display: flex; align-items: center; gap: 12px; flex-grow: 1;">
-        <div style="width: 10px; height: 10px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite;"></div>
-        <div style="display: flex; align-items: center; gap: 16px; flex-grow: 1;">
-            <div>
-                <p style="margin: 0; font-size: 12px; color: #65a30d; font-weight: 600;">SHIFT ACTIVE</p>
-                <p style="margin: 4px 0 0 0; font-size: 13px; color: #166534; font-weight: 600;">
-                    Started: {{ $activeShift->started_at->format('h:i A') }}
-                </p>
-            </div>
-            <div style="display: flex; gap: 24px; align-items: center; flex-grow: 1;">
-                <div>
-                    <p style="margin: 0; font-size: 11px; color: #65a30d;">Opening Balance</p>
-                    <p style="margin: 2px 0 0 0; font-size: 14px; font-weight: 700; color: #166534;">Rs. {{ number_format($activeShift->opening_balance, 2) }}</p>
-                </div>
-                <div>
-                    <p style="margin: 0; font-size: 11px; color: #65a30d;">Total Sales</p>
-                    <p id="posTotalSales" style="margin: 2px 0 0 0; font-size: 14px; font-weight: 700; color: #166534;">Rs. 0.00</p>
-                </div>
-            </div>
-        </div>
-        <a href="{{ route('shifts.index') }}" style="background: #dc2626; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 12px; white-space: nowrap;">
-            Close Shift
-        </a>
-    </div>
-</div>
-@endif
-
-<style>
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: .5; }
-    }
-    #shiftBanner {
-        position: sticky;
-        top: 64px;
-    }
-</style>
 
 <!-- Hidden print area -->
 <div id="printArea"></div>
 
-<div class="pos-grid" style="margin-top: 0; height: calc(100vh - 64px - 60px);">
+<div class="pos-grid" style="margin-top: 0; height: calc(100vh - 64px);">
 
     <!-- ════════════════════════════════════════
          COLUMN 1 — TABLES PANEL
@@ -396,6 +356,9 @@
                     <button class="pay-method-btn" data-method="bank_transfer" onclick="selectPaymentMethod('bank_transfer')" style="flex:1; padding:6px 4px; font-size:10px;">
                         <i class="fas fa-university" style="display:block; font-size:13px; margin-bottom:2px;"></i>Bank
                     </button>
+                    <button class="pay-method-btn" data-method="split" onclick="selectPaymentMethod('split')" style="flex:1; padding:6px 4px; font-size:10px;">
+                        <i class="fas fa-code-branch" style="display:block; font-size:13px; margin-bottom:2px;"></i>Split
+                    </button>
                 </div>
                 <!-- Cash amount input -->
                 <div id="cashSection" style="display:flex; gap:6px;">
@@ -408,6 +371,46 @@
                     <div style="flex:1;">
                         <label style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Change</label>
                         <div id="changeDisplay" style="font-size:12px; font-weight:700; color:#16a34a; padding:5px 6px; background:#f0fdf4; border-radius:5px; border:1px solid #bbf7d0; text-align:center;">Rs. 0.00</div>
+                    </div>
+                </div>
+
+                <!-- Split Payment inputs -->
+                <div id="splitSection" style="display:none; border-top:1px solid #e2e8f0; padding-top:8px;">
+                    <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:6px;">Split Payment</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                        <div>
+                            <label for="splitMethod1" style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Method 1</label>
+                            <select id="splitMethod1" onchange="updateSplitTotal()" style="width:100%; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:4px 6px; outline:none;">
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="bank">Bank</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="splitAmount1" style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Amount</label>
+                            <input type="number" id="splitAmount1" placeholder="0.00" min="0" oninput="updateSplitTotal()"
+                                   style="width:100%; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:4px 6px; outline:none;">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                        <div>
+                            <label for="splitMethod2" style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Method 2</label>
+                            <select id="splitMethod2" onchange="updateSplitTotal()" style="width:100%; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:4px 6px; outline:none;">
+                                <option value="">-- Select --</option>
+                                <option value="cash">Cash</option>
+                                <option value="card">Card</option>
+                                <option value="bank">Bank</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="splitAmount2" style="font-size:9px; font-weight:600; color:#64748b; display:block; margin-bottom:2px;">Amount</label>
+                            <input type="number" id="splitAmount2" placeholder="0.00" min="0" oninput="updateSplitTotal()"
+                                   style="width:100%; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:4px 6px; outline:none;">
+                        </div>
+                    </div>
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:5px; padding:5px 6px; text-align:center;">
+                        <div style="font-size:8px; color:#64748b; margin-bottom:2px;">Total Paid</div>
+                        <div id="splitTotalDisplay" style="font-size:12px; font-weight:700; color:#16a34a;">Rs. 0.00</div>
                     </div>
                 </div>
             </div>
@@ -983,15 +986,17 @@
             return;
         }
 
-        // Optimistic update
-        const existing = currentOrder.items.find(function(i) { return i.product_id === productId; });
+        // Optimistic update - only increase qty if item exists and NOT printed to kitchen
+        const existing = currentOrder.items.find(function(i) {
+            return i.product_id === productId && (!i.kot_printed);
+        });
         if (existing) {
             existing.quantity++;
             existing.subtotal = existing.unit_price * existing.quantity;
         } else {
             currentOrder.items.push({
                 id: null, product_id: productId, product_name: productName,
-                unit_price: price, quantity: 1, subtotal: price, kitchen_notes: null
+                unit_price: price, quantity: 1, subtotal: price, kitchen_notes: null, kot_printed: false
             });
         }
         // Deduct from stock cache
@@ -1420,7 +1425,16 @@
             btn.classList.toggle('active', btn.dataset.method === method);
         });
         document.getElementById('cashSection').style.display = method === 'cash' ? 'flex' : 'none';
+        document.getElementById('splitSection').style.display = method === 'split' ? 'block' : 'none';
         if (method !== 'cash') document.getElementById('changeDisplay').textContent = 'Rs. 0.00';
+        if (method === 'split') updateSplitTotal();
+    }
+
+    function updateSplitTotal() {
+        const amount1 = parseFloat(document.getElementById('splitAmount1').value) || 0;
+        const amount2 = parseFloat(document.getElementById('splitAmount2').value) || 0;
+        const total = amount1 + amount2;
+        document.getElementById('splitTotalDisplay').textContent = 'Rs. ' + total.toFixed(2);
     }
 
     function calcDiscount(subtotal) {
@@ -1466,24 +1480,52 @@
             }
         }
 
+        // Split payment validation
+        if (selectedPaymentMethod === 'split') {
+            const amount1 = parseFloat(document.getElementById('splitAmount1').value) || 0;
+            const amount2 = parseFloat(document.getElementById('splitAmount2').value) || 0;
+            const subtotal = currentOrder.subtotal || 0;
+            const discountVal = calcDiscount(subtotal);
+            const total = Math.max(0, subtotal - discountVal);
+            const splitTotal = amount1 + amount2;
+
+            if (amount1 <= 0 || splitTotal === 0) {
+                toast('Please enter amounts for split payment', 'error');
+                return;
+            }
+            if (Math.abs(splitTotal - total) > 0.01) {
+                toast(`Split total (Rs. ${splitTotal.toFixed(2)}) must equal bill (Rs. ${total.toFixed(2)})`, 'error');
+                return;
+            }
+        }
+
         await saveCustomerInfo();
 
         const subtotal    = currentOrder.subtotal || 0;
         const discountVal = calcDiscount(subtotal);
         const total       = Math.max(0, subtotal - discountVal);
-        const amountPaid  = selectedPaymentMethod === 'cash'
-            ? parseFloat(document.getElementById('amountPaid').value)
-            : total;
+        let amountPaid    = total;
+        let paymentData   = {
+            payment_method: selectedPaymentMethod,
+            amount_paid:    amountPaid,
+            discount_type:  document.getElementById('discountType').value || null,
+            discount_value: parseFloat(document.getElementById('discountValue').value) || 0,
+        };
+
+        if (selectedPaymentMethod === 'cash') {
+            amountPaid = parseFloat(document.getElementById('amountPaid').value);
+            paymentData.amount_paid = amountPaid;
+        } else if (selectedPaymentMethod === 'split') {
+            paymentData.split_method1 = document.getElementById('splitMethod1').value;
+            paymentData.split_amount1 = parseFloat(document.getElementById('splitAmount1').value);
+            paymentData.split_method2 = document.getElementById('splitMethod2').value;
+            paymentData.split_amount2 = parseFloat(document.getElementById('splitAmount2').value);
+        }
 
         const res = await fetch('{{ route("pos.order.pay", ":id") }}'.replace(':id', currentOrder.id), {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                payment_method: selectedPaymentMethod,
-                amount_paid:    amountPaid,
-                discount_type:  document.getElementById('discountType').value || null,
-                discount_value: parseFloat(document.getElementById('discountValue').value) || 0,
-            })
+            body: JSON.stringify(paymentData)
         });
         if (!res.ok) {
             toast('Payment failed — server error', 'error');
@@ -1665,6 +1707,12 @@
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
         });
         const data = await res.json();
+
+        if (!data.success) {
+            toast(data.message || 'KOT already printed', 'warning');
+            return;
+        }
+
         document.getElementById('kotOrderNumber').textContent = 'Order #' + data.order_number;
         document.getElementById('kotTableNumber').textContent = 'Table ' + (currentTable ? currentTable.table_number : '—');
         renderKotItems(data.items);
@@ -1678,6 +1726,12 @@
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
         });
         const data = await res.json();
+
+        if (!data.success) {
+            toast(data.message || 'KOT already printed', 'warning');
+            return;
+        }
+
         document.getElementById('kotOrderNumber').textContent = 'Order #' + data.order_number;
         document.getElementById('kotTableNumber').textContent = 'Table ' + (data.table_number || '—');
         renderKotItems(data.items);
