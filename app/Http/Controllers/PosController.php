@@ -126,6 +126,22 @@ class PosController extends Controller
     {
         $order->load('items.product', 'table', 'customer');
 
+        $itemsData = $order->items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'product_name' => $item->product_name,
+                'unit_price' => (float) $item->unit_price,
+                'quantity' => $item->quantity,
+                'subtotal' => (float) $item->subtotal,
+                'discount_percent' => (float) $item->discount_percent,
+                'kitchen_notes' => $item->kitchen_notes,
+                'is_bar_item' => (bool) $item->is_bar_item,
+                'kot_printed' => (bool) $item->kot_printed,
+                'image' => $item->product?->image,
+            ];
+        });
+
         return response()->json([
             'id' => $order->id,
             'order_number' => $order->order_number,
@@ -141,21 +157,7 @@ class PosController extends Controller
             'discount_amount' => (float) $order->discount_amount,
             'tax_amount' => (float) $order->tax_amount,
             'total' => (float) $order->total,
-            'items' => $order->items->map(function ($item) {
-                return [
-                    'id' => $item->id,
-                    'product_id' => $item->product_id,
-                    'product_name' => $item->product_name,
-                    'unit_price' => (float) $item->unit_price,
-                    'quantity' => $item->quantity,
-                    'subtotal' => (float) $item->subtotal,
-                    'discount_percent' => (float) $item->discount_percent,
-                    'kitchen_notes' => $item->kitchen_notes,
-                    'is_bar_item' => $item->is_bar_item,
-                    'kot_printed' => (bool) $item->kot_printed,
-                    'image' => $item->product?->image,
-                ];
-            }),
+            'items' => $itemsData,
         ]);
     }
 
@@ -215,6 +217,7 @@ class PosController extends Controller
         return response()->json([
             'success' => true,
             'item_id' => $item->id,
+            'item_kot_printed' => (bool) $item->kot_printed,
             'message' => $product->name . ' added to order',
             'low_stock_alert' => $lowStockAlert,
         ]);
@@ -321,10 +324,12 @@ class PosController extends Controller
     public function printKot(Order $order)
     {
         $order->load('items');
-        $kitchenItems = $order->items->where('is_bar_item', false)->values();
 
-        // Get items that have NOT been printed yet (kot_printed = false)
-        $unprintedItems = $kitchenItems->filter(fn($item) => !$item->kot_printed);
+        // Get kitchen items (not bar items) that have NOT been printed yet
+        $unprintedItems = $order->items
+            ->where('is_bar_item', false)
+            ->where('kot_printed', false)
+            ->values();
 
         if ($unprintedItems->isEmpty()) {
             return response()->json([
@@ -334,11 +339,14 @@ class PosController extends Controller
             ], 422);
         }
 
-        // Get the IDs of unprinted items
+        // Get the IDs of unprinted items and mark them as printed
         $unprintedItemIds = $unprintedItems->pluck('id')->toArray();
-
-        // Mark these items as printed using query builder
-        OrderItem::whereIn('id', $unprintedItemIds)->update(['kot_printed' => true]);
+        \DB::table('order_items')
+            ->whereIn('id', $unprintedItemIds)
+            ->update([
+                'kot_printed' => true,
+                'updated_at' => \Carbon\Carbon::now(),
+            ]);
 
         return response()->json([
             'success' => true,
