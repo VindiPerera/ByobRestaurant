@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shift;
+use App\Models\ShiftTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
