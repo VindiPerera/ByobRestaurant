@@ -161,6 +161,37 @@
                 </div>
             </div>
 
+            
+
+            <!-- Modules -->
+            <div>
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-xl font-bold text-gray-900">Available Modules</h2>
+                    <span class="text-xs text-gray-400 font-medium">{{ $modules->count() }} modules</span>
+                </div>
+
+                @if($modules->count() > 0)
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        @foreach($modules as $module)
+                            <a href="{{ route($module->route) }}" class="module-card p-6">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="module-icon">
+                                        <i class="fas fa-{{ $module->icon }}"></i>
+                                    </div>
+                                    <i class="fas fa-arrow-right" style="color:rgba(0,0,0,0.2); font-size:14px; margin-top:4px;"></i>
+                                </div>
+                                <h3 class="text-base font-bold text-gray-900 mb-1">{{ $module->name }}</h3>
+                                <p class="text-gray-500 text-sm" style="line-height:1.5;">{{ $module->description ?? 'Manage ' . strtolower($module->name) }}</p>
+                            </a>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="bg-white p-10 rounded-2xl text-center border border-gray-100">
+                        <i class="fas fa-inbox text-gray-300 text-4xl mb-4"></i>
+                        <p class="text-gray-500">No modules available for your role yet.</p>
+                    </div>
+                @endif
+            </div>
             <!-- History Cards -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-5">
@@ -191,36 +222,6 @@
                         <p class="text-gray-500 text-sm" style="line-height:1.5;">Reprint kitchen and bar orders</p>
                     </a>
                 </div>
-            </div>
-
-            <!-- Modules -->
-            <div>
-                <div class="flex items-center justify-between mb-5">
-                    <h2 class="text-xl font-bold text-gray-900">Available Modules</h2>
-                    <span class="text-xs text-gray-400 font-medium">{{ $modules->count() }} modules</span>
-                </div>
-
-                @if($modules->count() > 0)
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        @foreach($modules as $module)
-                            <a href="{{ route($module->route) }}" class="module-card p-6">
-                                <div class="flex items-start justify-between mb-4">
-                                    <div class="module-icon">
-                                        <i class="fas fa-{{ $module->icon }}"></i>
-                                    </div>
-                                    <i class="fas fa-arrow-right" style="color:rgba(0,0,0,0.2); font-size:14px; margin-top:4px;"></i>
-                                </div>
-                                <h3 class="text-base font-bold text-gray-900 mb-1">{{ $module->name }}</h3>
-                                <p class="text-gray-500 text-sm" style="line-height:1.5;">{{ $module->description ?? 'Manage ' . strtolower($module->name) }}</p>
-                            </a>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="bg-white p-10 rounded-2xl text-center border border-gray-100">
-                        <i class="fas fa-inbox text-gray-300 text-4xl mb-4"></i>
-                        <p class="text-gray-500">No modules available for your role yet.</p>
-                    </div>
-                @endif
             </div>
 
             <!-- Mobile quick access -->

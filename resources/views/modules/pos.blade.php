@@ -651,7 +651,7 @@
                 + vipBadge
                 + '<div style="font-size:20px; font-weight:900; color:#0f172a; line-height:1;">' + table.table_number + '</div>'
                 + '<div style="font-size:11px; font-weight:600; color:#64748b; margin-top:2px;">' + escapeHtml(table.name) + '</div>'
-                + '<div style="font-size:10px; color:#94a3b8;">Cap: ' + table.capacity + '</div>'
+                
                 + itemBadge + timeLabel + actionBar
                 + '</div>';
         }).join('');
@@ -1550,10 +1550,9 @@
         const dateStr = now.toLocaleDateString('en-GB') + ', ' + now.toLocaleTimeString('en-GB');
 
         // ── Update these values to match your restaurant ──
-        const CO_NAME    = 'RESTAURANT BYOB';
-        const CO_CONTACT = '+94 XX XXX XXXX';
-        const CO_EMAIL   = 'info@restaurantbyob.lk';
-        const CO_ADDRESS = 'Your Address, City';
+        const CO_NAME    = 'Suasa Family Restaurant';
+        const CO_CONTACT = '071 979 9799';
+        const CO_ADDRESS = '583 Avissawella Road, mulleriyawa';
 
         const itemRows = d.items.map(function(i) {
             const discLabel = i.discount_percent > 0 ? ' (-' + i.discount_percent + '%)' : '';
@@ -1637,10 +1636,9 @@
         const dateStr = now.toLocaleDateString('en-GB') + ', ' + now.toLocaleTimeString('en-GB');
 
         // ── Update these values to match your restaurant ──
-        const CO_NAME    = 'RESTAURANT BYOB';
-        const CO_CONTACT = '+94 XX XXX XXXX';
-        const CO_EMAIL   = 'info@restaurantbyob.lk';
-        const CO_ADDRESS = 'Your Address, City';
+        const CO_NAME    = 'Suasa Family Restaurant';
+        const CO_CONTACT = '071 979 9799';
+        const CO_ADDRESS = '583 Avissawella Road, mulleriyawa';
 
         const itemRows = data.items.map(function(i) {
             return '<tr>'
