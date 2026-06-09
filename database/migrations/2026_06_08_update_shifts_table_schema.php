@@ -34,12 +34,16 @@ return new class extends Migration
             }
         });
 
-        // Migrate data from opening_amount to opening_balance
-        DB::statement('UPDATE shifts SET opening_balance = opening_amount WHERE opening_amount IS NOT NULL');
+        // Migrate data from opening_amount to opening_balance (if column exists)
+        if (Schema::hasColumn('shifts', 'opening_amount')) {
+            DB::statement('UPDATE shifts SET opening_balance = opening_amount WHERE opening_amount IS NOT NULL');
+        }
 
         // Migrate data from is_active to status
-        DB::statement("UPDATE shifts SET status = 'active' WHERE is_active = 1");
-        DB::statement("UPDATE shifts SET status = 'closed' WHERE is_active = 0 AND status = 'active'");
+        if (Schema::hasColumn('shifts', 'is_active')) {
+            DB::statement("UPDATE shifts SET status = 'active' WHERE is_active = 1");
+            DB::statement("UPDATE shifts SET status = 'closed' WHERE is_active = 0 AND status = 'active'");
+        }
     }
 
     public function down(): void
