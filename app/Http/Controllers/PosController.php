@@ -585,4 +585,147 @@ class PosController extends Controller
             'created_at' => $order->created_at,
         ]));
     }
+
+    public function orderHistory()
+    {
+        $modules = $this->currentUser()->role->modules()->get();
+        return view('modules.order-history', ['modules' => $modules]);
+    }
+
+    public function getOrderHistory(Request $request)
+    {
+        $query = Order::with('table', 'items')
+            ->where('status', 'completed')
+            ->orderBy('created_at', 'desc');
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where('order_number', 'like', "%{$search}%")
+                ->orWhere('customer_name', 'like', "%{$search}%")
+                ->orWhere('customer_phone', 'like', "%{$search}%");
+        }
+
+        if ($request->has('order_type') && $request->input('order_type') !== 'all') {
+            $query->where('order_type', $request->input('order_type'));
+        }
+
+        $orders = $query->get();
+
+        return response()->json($orders->map(fn($order) => [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'order_type' => $order->order_type,
+            'table_number' => $order->table?->table_number,
+            'customer_name' => $order->customer_name ?? 'Walk-in',
+            'customer_phone' => $order->customer_phone,
+            'subtotal' => (float) $order->subtotal,
+            'discount_amount' => (float) $order->discount_amount,
+            'total' => (float) $order->total,
+            'payment_method' => $order->payment_method,
+            'items_count' => $order->items->count(),
+            'created_at' => $order->created_at->format('M d, Y H:i'),
+            'printed_at' => $order->printed_at?->format('M d, Y H:i'),
+        ]), 200);
+    }
+
+    public function kotHistory()
+    {
+        $modules = $this->currentUser()->role->modules()->get();
+        return view('modules.kot-history', ['modules' => $modules]);
+    }
+
+    public function getKotHistory(Request $request)
+    {
+        $query = Order::with('items')
+            ->where('status', 'completed')
+            ->whereNotNull('kot_printed_at')
+            ->orderBy('kot_printed_at', 'desc');
+
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where('order_number', 'like', "%{$search}%")
+                ->orWhere('customer_name', 'like', "%{$search}%");
+        }
+
+        $orders = $query->get();
+
+        return response()->json($orders->map(fn($order) => [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name ?? 'N/A',
+            'items_count' => $order->items->count(),
+            'kot_printed_at' => $order->kot_printed_at?->format('M d, Y H:i'),
+            'bot_printed_at' => $order->bot_printed_at?->format('M d, Y H:i'),
+            'items' => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'kitchen_notes' => $item->kitchen_notes,
+                'is_bar_item' => (bool) $item->is_bar_item,
+            ]),
+        ]), 200);
+    }
+
+    public function reprintReceipt(Order $order)
+    {
+        $order->load('items', 'table');
+
+        return response()->json([
+            'success' => true,
+            'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'subtotal' => (float) $order->subtotal,
+            'discount_amount' => (float) $order->discount_amount,
+            'tax_amount' => (float) $order->tax_amount,
+            'total' => (float) $order->total,
+            'payment_method' => $order->payment_method,
+            'amount_paid' => (float) $order->amount_paid,
+            'change_amount' => (float) $order->change_amount,
+            'order_type' => $order->order_type,
+            'printed_at' => $order->printed_at?->format('M d, Y H:i'),
+            'items' => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
+                'discount_percent' => (float) $item->discount_percent,
+            ]),
+        ]);
+    }
+
+    public function reprintKot(Order $order)
+    {
+        $order->load('items');
+        $kitchenItems = $order->items->where('is_bar_item', false)->values();
+
+        return response()->json([
+            'success' => true,
+            'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
+            'order_type' => $order->order_type,
+            'items' => $kitchenItems->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'kitchen_notes' => $item->kitchen_notes,
+            ]),
+        ]);
+    }
+
+    public function reprintBot(Order $order)
+    {
+        $order->load('items');
+        $barItems = $order->items->where('is_bar_item', true)->values();
+
+        return response()->json([
+            'success' => true,
+            'order_number' => $order->order_number,
+            'customer_name' => $order->customer_name,
+            'items' => $barItems->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'kitchen_notes' => $item->kitchen_notes,
+            ]),
+        ]);
+    }
 }

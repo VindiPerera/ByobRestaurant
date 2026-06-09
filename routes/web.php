@@ -98,6 +98,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos/held-orders', [PosController::class, 'getHeldOrders'])->name('pos.held');
     Route::post('/pos/order/{order}/pay', [PosController::class, 'payOrder'])->name('pos.order.pay');
 
+    // Order & KOT History routes
+    Route::get('/order-history', [PosController::class, 'orderHistory'])->name('order.history');
+    Route::get('/api/order-history', [PosController::class, 'getOrderHistory'])->name('api.order.history');
+    Route::get('/kot-history', [PosController::class, 'kotHistory'])->name('kot.history');
+    Route::get('/api/kot-history', [PosController::class, 'getKotHistory'])->name('api.kot.history');
+    Route::get('/pos/order/{order}/receipt/reprint', [PosController::class, 'reprintReceipt'])->name('pos.receipt.reprint');
+    Route::get('/pos/order/{order}/kot/reprint', [PosController::class, 'reprintKot'])->name('pos.kot.reprint');
+    Route::get('/pos/order/{order}/bot/reprint', [PosController::class, 'reprintBot'])->name('pos.bot.reprint');
+
     // Stock adjustments
     Route::get('/inventory/adjustments', [StockAdjustmentController::class, 'index'])->name('stock.adjustments.index');
     Route::get('/inventory/adjustments/create', [StockAdjustmentController::class, 'create'])->name('stock.adjustments.create');

@@ -161,6 +161,38 @@
                 </div>
             </div>
 
+            <!-- History Cards -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-5">
+                    <h2 class="text-xl font-bold text-gray-900">Quick Access</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- Order History Card -->
+                    <a href="{{ route('order.history') }}" class="module-card p-6" style="background: #fef3c7;">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="module-icon">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <i class="fas fa-arrow-right" style="color:rgba(0,0,0,0.2); font-size:14px; margin-top:4px;"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-gray-900 mb-1">Order History</h3>
+                        <p class="text-gray-500 text-sm" style="line-height:1.5;">View past orders and reprint receipts</p>
+                    </a>
+
+                    <!-- KOT History Card -->
+                    <a href="{{ route('kot.history') }}" class="module-card p-6" style="background: #dbeafe;">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="module-icon">
+                                <i class="fas fa-receipt"></i>
+                            </div>
+                            <i class="fas fa-arrow-right" style="color:rgba(0,0,0,0.2); font-size:14px; margin-top:4px;"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-gray-900 mb-1">KOT & BOT History</h3>
+                        <p class="text-gray-500 text-sm" style="line-height:1.5;">Reprint kitchen and bar orders</p>
+                    </a>
+                </div>
+            </div>
+
             <!-- Modules -->
             <div>
                 <div class="flex items-center justify-between mb-5">
