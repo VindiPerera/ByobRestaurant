@@ -1568,7 +1568,7 @@
         // ── HEADER: Logo + Company Details ──
         const html =
             '<div style="text-align:center; padding-bottom:8px;">'
-            + '<img src="/images/logo.jpeg" style="max-width:200px; max-height:200px; margin-bottom:6px; display:block; margin-left:auto; margin-right:auto;" />'
+            + '<img src="/images/logo.jpeg" style="max-width:150px; max-height:150px; margin-bottom:6px; display:block; margin-left:auto; margin-right:auto;" />'
             + '<div style="font-size:14px; letter-spacing:1px; color:#000; font-weight:bold;">' + CO_NAME + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_CONTACT + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_EMAIL + '</div>'
