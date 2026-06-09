@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Shift;
+use App\Models\ShiftTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -30,7 +31,7 @@ class ShiftController extends Controller
     public function startShift(Request $request)
     {
         $validated = $request->validate([
-            'opening_balance' => 'required|numeric|min:0',
+            'opening_balance' => 'nullable|numeric|min:0',
         ]);
 
         // Check if user already has active shift
@@ -47,10 +48,9 @@ class ShiftController extends Controller
 
         $shift = Shift::create([
             'user_id' => auth()->id(),
-            'name' => 'Shift - ' . now()->format('Y-m-d H:i'),
             'status' => 'active',
             'started_at' => now(),
-            'opening_balance' => $validated['opening_balance'],
+            'opening_balance' => $validated['opening_balance'] ?? 0,
         ]);
 
         return response()->json([
