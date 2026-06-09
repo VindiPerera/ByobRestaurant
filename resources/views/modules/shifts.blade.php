@@ -202,20 +202,20 @@
                     <i class="fas fa-play-circle"></i>
                     <span>Start New Shift</span>
                 </h2>
-                <p class="mt-2 text-blue-100">Enter your opening balance to begin the shift</p>
+                <p class="mt-2 text-blue-100">Optionally enter your opening balance to begin the shift</p>
             </div>
 
             <form id="startShiftForm" class="p-6 space-y-4">
                 @csrf
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Opening Balance (Till Float)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Opening Balance (Till Float) <span class="text-gray-400 font-normal">— optional</span></label>
                     <div class="relative">
                         <span class="absolute left-3 top-3 text-gray-500 font-semibold">Rs.</span>
-                        <input type="number" id="openingBalance" name="opening_balance" step="0.01" min="0" required
+                        <input type="number" id="openingBalance" name="opening_balance" step="0.01" min="0"
                             class="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="0.00">
                     </div>
-                    <p class="mt-1 text-xs text-gray-600">This is the starting cash amount in your till</p>
+                    <p class="mt-1 text-xs text-gray-600">Leave blank to start with Rs. 0.00 as the opening balance</p>
                 </div>
 
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -490,27 +490,43 @@
         // Form submissions
         document.getElementById('startShiftForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Starting...';
+
+            const openingBalanceVal = document.getElementById('openingBalance').value;
+            const payload = {
+                opening_balance: openingBalanceVal !== '' ? parseFloat(openingBalanceVal) : null,
+            };
 
             fetch('{{ route("shifts.start") }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                 },
-                body: JSON.stringify(Object.fromEntries(formData))
+                body: JSON.stringify(payload),
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (ok && data.success) {
                     closeStartShiftModal();
                     document.getElementById('startShiftForm').reset();
-                    window.location.reload();
+                    window.location.href = '{{ route("pos.index") }}';
                 } else {
-                    alert(data.message);
+                    alert(data.message || 'Failed to start shift. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
                 }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to start shift. Please check your connection and try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
         });
 
         document.getElementById('closeShiftForm').addEventListener('submit', function(e) {
