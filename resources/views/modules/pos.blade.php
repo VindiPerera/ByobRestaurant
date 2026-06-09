@@ -1568,8 +1568,8 @@
         // ── HEADER: Logo + Company Details ──
         const html =
             '<div style="text-align:center; padding-bottom:8px;">'
-            + '<img src="/images/jaan_logo.jpg" style="max-width:60px; max-height:60px; margin-bottom:4px; display:block; margin-left:auto; margin-right:auto;" />'
-            + '<div style="font-size:14px; letter-spacing:1px; color:#000;">' + CO_NAME + '</div>'
+            + '<img src="/images/logo.jpeg" style="max-width:80px; max-height:80px; margin-bottom:6px; display:block; margin-left:auto; margin-right:auto;" />'
+            + '<div style="font-size:14px; letter-spacing:1px; color:#000; font-weight:bold;">' + CO_NAME + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_CONTACT + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_EMAIL + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_ADDRESS + '</div>'
@@ -1656,8 +1656,8 @@
         // ── HEADER: Logo + Company Details ──
         const html =
             '<div style="text-align:center; padding-bottom:8px;">'
-            + '<img src="/images/jaan_logo.jpg" style="max-width:60px; max-height:60px; margin-bottom:4px; display:block; margin-left:auto; margin-right:auto;" />'
-            + '<div style="font-size:14px; letter-spacing:1px; color:#000;">' + CO_NAME + '</div>'
+            + '<img src="/images/logo.jpeg" style="max-width:80px; max-height:80px; margin-bottom:6px; display:block; margin-left:auto; margin-right:auto;" />'
+            + '<div style="font-size:14px; letter-spacing:1px; color:#000; font-weight:bold;">' + CO_NAME + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_CONTACT + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_EMAIL + '</div>'
             + '<div style="font-size:11px; color:#000;">' + CO_ADDRESS + '</div>'
