@@ -219,7 +219,7 @@
         function printTicket(data, title) {
             const html = `
                 <div style="text-align:center; padding: 10px 0; border-bottom: 2px solid #000; margin-bottom: 10px;">
-                    <div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; display: inline-block; padding: 2px 10px; margin-bottom: 8px; border-radius: 4px;">RE-PRINT</div>
+                    <div style="font-size: 24px; font-weight: 900; color: #dc2626; border: 3px solid #dc2626; display: inline-block; padding: 4px 15px; margin-bottom: 10px; border-radius: 8px; letter-spacing: 2px;">RE-PRINT</div>
                     <div style="font-weight: 900; font-size: 16px; color:#000;">${title}</div>
                     <div style="font-size: 13px; font-weight: 800; color:#000; margin-top: 5px;">Order: ${data.order_number}</div>
                     <div style="font-size: 14px; font-weight: 900; margin:4px 0; color:#000;">Table ${data.table_number || '—'}</div>

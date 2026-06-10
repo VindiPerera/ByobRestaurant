@@ -117,12 +117,19 @@
                         </select>
                     </div>
                     <div style="display: flex; align-items: flex-end; gap: 8px;">
-                        <button onclick="loadOrders()" class="flex-1 btn btn-primary">
+                        <button onclick="loadOrders(true)" class="flex-1 btn btn-primary">
                             <i class="fas fa-search"></i> Search
                         </button>
                         <button onclick="resetFilters()" class="flex-1 btn btn-secondary">
                             <i class="fas fa-undo"></i> Reset
                         </button>
+                    </div>
+                    <div id="refreshIndicator" class="ml-auto flex items-center gap-2 text-xs text-gray-400 font-medium mr-2" style="grid-column: span 3; justify-content: flex-end; margin-top: 8px;">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        Auto-refreshing...
                     </div>
                 </div>
             </div>
@@ -173,12 +180,14 @@
     </div>
 
     <script>
-        function loadOrders() {
+        function loadOrders(showSpinner = false) {
             const search = document.getElementById('searchInput').value;
             const orderType = document.getElementById('orderTypeFilter').value;
             const tbody = document.getElementById('ordersTableBody');
 
-            tbody.innerHTML = '<tr style="height: 80px;"><td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i></td></tr>';
+            if (showSpinner) {
+                tbody.innerHTML = '<tr style="height: 80px;"><td colspan="7" style="text-align: center; padding: 40px; color: #94a3b8;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i></td></tr>';
+            }
 
             let url = '/api/order-history?';
             if (search) url += `search=${encodeURIComponent(search)}&`;
@@ -188,7 +197,7 @@
                 .then(res => res.json())
                 .then(data => {
                     if (!Array.isArray(data)) {
-                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #ef4444;">Error loading orders</td></tr>';
+                        if (showSpinner) tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #ef4444;">Error loading orders</td></tr>';
                         return;
                     }
 
@@ -211,8 +220,8 @@
                             <td style="padding: 12px 16px; text-align: center; color: #475569;">${order.items_count}</td>
                             <td style="padding: 12px 16px; color: #475569; font-size: 13px;">${order.created_at}</td>
                             <td style="padding: 12px 16px; text-align: center;">
-                                <button onclick="viewReceipt(${order.id})" class="btn btn-primary" style="font-size: 11px;">
-                                    <i class="fas fa-receipt"></i> View
+                                <button onclick="reprintBill(${order.id})" class="btn btn-primary" style="font-size: 11px;">
+                                    <i class="fas fa-print"></i> Re-Print Bill
                                 </button>
                             </td>
                         </tr>
@@ -220,103 +229,95 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #ef4444;">Failed to load orders</td></tr>';
-                });
-        }
-
-        function viewReceipt(orderId) {
-            const modal = document.getElementById('receiptModal');
-            const content = document.getElementById('receiptContent');
-
-            modal.classList.add('active');
-            content.classList.add('active');
-            content.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #dc2626;"></i>';
-
-            fetch(`/pos/order/${orderId}/receipt/reprint`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const itemsHtml = data.items.map(item => `
-                            <tr>
-                                <td style="padding: 8px; color: #475569;">${item.product_name}</td>
-                                <td style="padding: 8px; text-align: right; color: #475569;">${item.quantity}</td>
-                                <td style="padding: 8px; text-align: right; color: #475569;">LKR ${parseFloat(item.unit_price).toFixed(2)}</td>
-                                <td style="padding: 8px; text-align: right; color: #1e293b; font-weight: 600;">LKR ${parseFloat(item.subtotal).toFixed(2)}</td>
-                            </tr>
-                        `).join('');
-
-                        content.classList.remove('active');
-                        content.innerHTML = `
-                            <div style="border-bottom: 2px dashed #e2e8f0; padding-bottom: 16px; margin-bottom: 16px;">
-                                <h4 style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">${data.order_number}</h4>
-                                <p style="font-size: 13px; color: #475569;">
-                                    ${data.customer_name}<br>
-                                    ${data.order_type.replace('_', ' ')}<br>
-                                    <span style="color: #94a3b8;">${data.printed_at}</span>
-                                </p>
-                            </div>
-
-                            <table style="width: 100%; margin-bottom: 16px; font-size: 13px;">
-                                <thead>
-                                    <tr style="border-bottom: 1px solid #e2e8f0;">
-                                        <th style="text-align: left; padding: 8px; font-weight: 600; color: #475569;">Item</th>
-                                        <th style="text-align: right; padding: 8px; font-weight: 600; color: #475569;">Qty</th>
-                                        <th style="text-align: right; padding: 8px; font-weight: 600; color: #475569;">Price</th>
-                                        <th style="text-align: right; padding: 8px; font-weight: 600; color: #475569;">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${itemsHtml}
-                                </tbody>
-                            </table>
-
-                            <div style="border-top: 2px dashed #e2e8f0; padding-top: 12px; font-size: 13px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #475569;">
-                                    <span>Subtotal:</span>
-                                    <span>LKR ${parseFloat(data.subtotal).toFixed(2)}</span>
-                                </div>
-                                ${data.discount_amount > 0 ? `
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #475569;">
-                                        <span>Discount:</span>
-                                        <span>-LKR ${parseFloat(data.discount_amount).toFixed(2)}</span>
-                                    </div>
-                                ` : ''}
-                                <div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 16px; color: #1e293b;">
-                                    <span>Total:</span>
-                                    <span>LKR ${parseFloat(data.total).toFixed(2)}</span>
-                                </div>
-                                ${data.payment_method ? `
-                                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; color: #475569; font-size: 12px;">
-                                        <div>Payment: ${data.payment_method}</div>
-                                        <div>Paid: LKR ${parseFloat(data.amount_paid).toFixed(2)}</div>
-                                        ${data.change_amount > 0 ? `<div>Change: LKR ${parseFloat(data.change_amount).toFixed(2)}</div>` : ''}
-                                    </div>
-                                ` : ''}
-                            </div>
-
-                            <div style="margin-top: 20px; display: flex; gap: 8px;">
-                                <button onclick="window.print()" class="flex-1 btn btn-primary">
-                                    <i class="fas fa-print"></i> Print
-                                </button>
-                                <button onclick="closeReceiptModal()" class="flex-1 btn btn-secondary">
-                                    <i class="fas fa-times"></i> Close
-                                </button>
-                            </div>
-                        `;
-                    } else {
-                        content.classList.remove('active');
-                        content.innerHTML = `<p style="color: #ef4444;">${data.message || 'Error loading receipt'}</p>`;
+                    if (showSpinner) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #ef4444;">Failed to load orders</td></tr>';
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    content.classList.remove('active');
-                    content.innerHTML = '<p style="color: #ef4444;">Failed to load receipt</p>';
                 });
         }
 
-        function closeReceiptModal() {
-            document.getElementById('receiptModal').classList.remove('active');
+        async function reprintBill(orderId) {
+            try {
+                const res = await fetch(`/pos/order/${orderId}/receipt/reprint`);
+                const data = await res.json();
+                if (data.success) {
+                    printThermalReceipt(data);
+                } else {
+                    alert('Error: ' + (data.message || 'Could not load receipt'));
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function printThermalReceipt(d) {
+            const CO_NAME    = 'Suasa Family Restaurant';
+            const CO_CONTACT = '071 979 9799';
+            const CO_ADDRESS = '583 Avissawella Road, mulleriyawa';
+            const CO_EMAIL   = 'info@suasafamily.com';
+
+            const itemRows = d.items.map(function(i) {
+                return `<tr>
+                    <td style="padding:3px 0; vertical-align:top; width:62%;">${i.product_name}</td>
+                    <td style="text-align:center; padding:3px 0; vertical-align:top; width:10%;">${i.quantity}</td>
+                    <td style="text-align:right; padding:3px 0; vertical-align:top; width:28%;">Rs.${parseFloat(i.subtotal).toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+
+            const html = `
+                <div style="text-align:center; padding-bottom:8px;">
+                    <img src="/images/logo.jpeg" style="max-width:120px; max-height:120px; margin-bottom:6px; display:block; margin-left:auto; margin-right:auto;" />
+                    <div style="font-size:16px; font-weight:900;">${CO_NAME}</div>
+                    <div style="font-size:12px;">${CO_CONTACT}</div>
+                    <div style="font-size:11px;">${CO_ADDRESS}</div>
+                </div>
+
+                <div style="border-top:2px solid #000; border-bottom:2px solid #000; padding:6px 0; margin-bottom:8px;">
+                    <div style="text-align:center; font-size:16px; font-weight:900; color: #dc2626; margin-bottom: 5px;">*** RE-PRINT ***</div>
+                    <div style="text-align:center; font-size:14px; letter-spacing:2px; margin-bottom:5px;">FINAL BILL</div>
+                    <table width="100%" cellspacing="0" cellpadding="2" style="font-size:12px; font-weight:900;">
+                        <tr><td style="width:35%;">Order</td><td style="text-align:right; width:65%;">${d.order_number}</td></tr>
+                        ${d.table_number ? `<tr><td>Table</td><td style="text-align:right;">${d.table_number}</td></tr>` : ''}
+                        ${d.customer_name ? `<tr><td>Customer</td><td style="text-align:right;">${d.customer_name}</span></td></tr>` : ''}
+                        <tr><td>Date</td><td style="text-align:right;">${d.printed_at}</td></tr>
+                    </table>
+                </div>
+
+                <table width="100%" cellspacing="0" cellpadding="2" style="font-size:13px; font-weight:900;">
+                    <thead><tr style="border-bottom:1px dashed #000;">
+                        <th style="text-align:left; width:62%;">ITEM</th>
+                        <th style="text-align:center; width:10%;">QTY</th>
+                        <th style="text-align:right; width:28%;">AMOUNT</th>
+                    </tr></thead>
+                    <tbody>${itemRows}</tbody>
+                </table>
+
+                <table width="100%" cellspacing="0" cellpadding="2" style="font-size:13px; font-weight:900; border-top:1px dashed #000; margin-top:4px;">
+                    <tr><td style="width:65%;">Subtotal</td><td style="text-align:right; width:35%;">Rs.${parseFloat(d.subtotal).toFixed(2)}</td></tr>
+                    ${d.discount_amount > 0 ? `<tr><td>Discount</td><td style="text-align:right;">-Rs.${parseFloat(d.discount_amount).toFixed(2)}</td></tr>` : ''}
+                    <tr style="border-top:1px solid #000; font-size:17px;"><td style="padding-top:4px;">TOTAL</td><td style="text-align:right; padding-top:4px;">Rs.${parseFloat(d.total).toFixed(2)}</td></tr>
+                </table>
+
+                <div style="border-top:1px dashed #000; margin-top:8px; padding-top:6px; font-size:12px; font-weight:900;">
+                    <div>Payment: ${d.payment_method || 'N/A'}</div>
+                    <div>Paid: Rs.${parseFloat(d.amount_paid || 0).toFixed(2)}</div>
+                    ${(d.change_amount > 0) ? `<div>Change: Rs.${parseFloat(d.change_amount).toFixed(2)}</div>` : ''}
+                </div>
+
+                <div style="text-align:center; font-size:11px; margin-top:10px; border-top:1px dashed #000; padding-top:8px; line-height:1.2;">
+                    Thank you for dining with us!<br>
+                    RE-PRINTED AT: ${new Date().toLocaleString()}<br>
+                    Powered By JAAN Network (PVT) Ltd
+                </div>
+            `;
+
+            const w = window.open('', '', 'width=400');
+            w.document.write(`
+                <!DOCTYPE html><html><head><style>
+                @page { size: 80mm auto; margin: 0; }
+                body { font-family: 'Courier New', monospace; width: 100%; margin: 0; padding: 4mm 5mm; font-size: 14px; font-weight: 900 !important; color: #000; }
+                * { box-sizing: border-box; font-weight: 900 !important; }
+                table { border-collapse: collapse; }
+                </style></head><body onload="window.print(); window.close();">${html}</body></html>
+            `);
+            w.document.close();
         }
 
         function resetFilters() {
@@ -325,11 +326,14 @@
             loadOrders();
         }
 
-        document.getElementById('receiptModal').addEventListener('click', (e) => {
-            if (e.target.id === 'receiptModal') closeReceiptModal();
-        });
+        loadOrders(true);
 
-        loadOrders();
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            if (!document.getElementById('searchInput').value) {
+                loadOrders(false);
+            }
+        }, 5000);
     </script>
 
 </body>
