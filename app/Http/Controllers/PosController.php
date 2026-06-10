@@ -176,19 +176,16 @@ class PosController extends Controller
         // Find any existing item for this product in the order
         $existingItem = OrderItem::where('order_id', $order->id)
             ->where('product_id', $product->id)
-            ->where('kot_printed', false)
             ->first();
 
         if ($existingItem) {
-            // If item exists and hasn't been printed yet, increase the quantity
+            // If item exists, increase the quantity
             $existingItem->quantity += $validated['quantity'];
             $existingItem->subtotal = $existingItem->unit_price * $existingItem->quantity;
             $existingItem->save();
             $item = $existingItem;
         } else {
-            // Either new item or existing item that was already printed
-            // If item was already printed, create a new line item for the additional quantity
-            // Otherwise create the first line item
+            // Create first line item
             $item = OrderItem::create([
                 'order_id' => $order->id,
                 'product_id' => $product->id,
@@ -199,6 +196,7 @@ class PosController extends Controller
                 'kitchen_notes' => $validated['kitchen_notes'] ?? null,
                 'is_bar_item' => $validated['is_bar_item'] ?? false,
                 'kot_printed' => false,
+                'printed_qty' => 0,
             ]);
         }
 
@@ -300,6 +298,7 @@ class PosController extends Controller
             'tax_amount' => 0,
             'total' => $total,
             'printed_at' => now(),
+            'kot_printed_at' => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         return response()->json([
@@ -325,13 +324,26 @@ class PosController extends Controller
     {
         $order->load('items');
 
-        // Get kitchen items (not bar items) that have NOT been printed yet
-        $unprintedItems = $order->items
+        // Get kitchen items (not bar items) that have quantity > printed_qty
+        $printableItems = $order->items
             ->where('is_bar_item', false)
-            ->where('kot_printed', false)
+            ->filter(function($item) {
+                return $item->quantity > $item->printed_qty;
+            })
             ->values();
 
-        if ($unprintedItems->isEmpty()) {
+        if ($printableItems->isEmpty()) {
+            // If the order already has kitchen items printed but kot_printed_at is missing, fix it now
+            if (!$order->kot_printed_at && $order->items->where('is_bar_item', false)->count() > 0) {
+                $order->update(['kot_printed_at' => now()]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'KOT already printed, history record updated.',
+                    'order_number' => $order->order_number,
+                    'items' => []
+                ]);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'No new items to print. All items already sent to kitchen.',
@@ -339,39 +351,31 @@ class PosController extends Controller
             ], 422);
         }
 
-        // Get the IDs of unprinted items and mark them as printed
-        $unprintedItemIds = $unprintedItems->pluck('id')->toArray();
-        \DB::table('order_items')
-            ->whereIn('id', $unprintedItemIds)
-            ->update([
+        // Prepare items to print and update printed_qty
+        $itemsToPrint = [];
+        foreach ($printableItems as $item) {
+            $qtyToPrint = $item->quantity - $item->printed_qty;
+            
+            $itemsToPrint[] = [
+                'product_name' => $item->product_name,
+                'quantity' => $qtyToPrint,
+                'kitchen_notes' => $item->kitchen_notes,
+            ];
+
+            // Mark as printed and update printed_qty
+            $item->update([
                 'kot_printed' => true,
-                'updated_at' => \Carbon\Carbon::now(),
+                'printed_qty' => $item->quantity,
+                'updated_at' => now(),
             ]);
+        }
+
+        $order->update(['kot_printed_at' => now()]);
 
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
-            'items' => $unprintedItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
-        ]);
-    }
-
-    public function printBot(Order $order)
-    {
-        $order->update(['bot_printed_at' => now()]);
-        $barItems = $order->items->where('is_bar_item', true)->values();
-
-        return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'items' => $barItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
+            'items' => $itemsToPrint,
         ]);
     }
 
@@ -507,6 +511,7 @@ class PosController extends Controller
             'amount_paid'     => $amountPaid,
             'change_amount'   => $change,
             'printed_at'      => now(),
+            'kot_printed_at'  => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         // Record transaction in active shift
@@ -637,14 +642,15 @@ class PosController extends Controller
     public function getKotHistory(Request $request)
     {
         $query = Order::with('items')
-            ->where('status', 'completed')
             ->whereNotNull('kot_printed_at')
             ->orderBy('kot_printed_at', 'desc');
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('order_number', 'like', "%{$search}%")
-                ->orWhere('customer_name', 'like', "%{$search}%");
+            $query->where(function($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                  ->orWhere('customer_name', 'like', "%{$search}%");
+            });
         }
 
         $orders = $query->get();
@@ -702,8 +708,11 @@ class PosController extends Controller
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number ?? '—',
             'customer_name' => $order->customer_name,
             'order_type' => $order->order_type,
+            'date_time' => now()->format('M d, Y H:i'),
+            'is_reprint' => true,
             'items' => $kitchenItems->map(fn($item) => [
                 'product_name' => $item->product_name,
                 'quantity' => $item->quantity,
@@ -712,20 +721,4 @@ class PosController extends Controller
         ]);
     }
 
-    public function reprintBot(Order $order)
-    {
-        $order->load('items');
-        $barItems = $order->items->where('is_bar_item', true)->values();
-
-        return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'customer_name' => $order->customer_name,
-            'items' => $barItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
-        ]);
-    }
 }

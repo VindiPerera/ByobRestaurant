@@ -85,21 +85,32 @@
 
             <!-- Page header -->
             <div class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">KOT & BOT History</h1>
-                <p class="text-gray-600">View and reprint kitchen and bar orders</p>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">KOT History</h1>
+                <p class="text-gray-600">View and reprint kitchen orders in real-time</p>
             </div>
 
             <!-- Search -->
-            <div class="bg-white rounded-lg p-6 mb-6 border border-gray-200">
-                <div class="flex gap-4">
-                    <input type="text" id="searchInput" placeholder="Search by order # or customer name..."
-                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500">
-                    <button onclick="loadKotHistory()" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Search
+            <div class="bg-white rounded-xl p-5 mb-6 border border-gray-200 shadow-sm">
+                <div class="flex gap-3">
+                    <div class="relative flex-1">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="searchInput" placeholder="Search by order # or customer name..."
+                            class="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
+                            onkeyup="if(event.key==='Enter') loadKotHistory(true)">
+                    </div>
+                    <button onclick="loadKotHistory(true)" class="btn btn-primary px-6 py-2.5 rounded-lg shadow-md shadow-red-100">
+                         Search
                     </button>
-                    <button onclick="resetFilters()" class="btn btn-secondary">
-                        <i class="fas fa-undo"></i> Reset
+                    <button onclick="resetFilters()" class="btn btn-secondary px-6 py-2.5 rounded-lg">
+                        <i class="fas fa-undo"></i>
                     </button>
+                    <div id="refreshIndicator" class="ml-auto flex items-center gap-2 text-xs text-gray-400 font-medium mr-2">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        Auto-refreshing...
+                    </div>
                 </div>
             </div>
 
@@ -111,9 +122,8 @@
                             <tr>
                                 <th style="text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">Order #</th>
                                 <th style="text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">Customer</th>
-                                <th style="text-align: center; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">Items</th>
-                                <th style="text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">KOT Printed</th>
-                                <th style="text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">BOT Printed</th>
+                                <th style="text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">Items Count</th>
+                                <th style="text-align: left; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">KOT Printed At</th>
                                 <th style="text-align: center; padding: 12px 16px; font-weight: 600; font-size: 13px; color: #475569;">Actions</th>
                             </tr>
                         </thead>
@@ -148,11 +158,13 @@
     </div>
 
     <script>
-        function loadKotHistory() {
+        function loadKotHistory(showSpinner = false) {
             const search = document.getElementById('searchInput').value;
             const tbody = document.getElementById('kotTableBody');
 
-            tbody.innerHTML = '<tr style="height: 80px;"><td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i></td></tr>';
+            if (showSpinner) {
+                tbody.innerHTML = '<tr style="height: 80px;"><td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;"><i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i></td></tr>';
+            }
 
             let url = '/api/kot-history';
             if (search) url += `?search=${encodeURIComponent(search)}`;
@@ -166,34 +178,21 @@
                     }
 
                     if (data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #94a3b8;">No KOT records found</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #94a3b8;">No KOT records found</td></tr>';
                         return;
                     }
 
                     tbody.innerHTML = data.map(order => {
-                        const kitchenItems = order.items.filter(i => !i.is_bar_item);
-                        const barItems = order.items.filter(i => i.is_bar_item);
-
                         return `
                             <tr class="table-row">
                                 <td style="padding: 12px 16px; font-weight: 600; color: #1e293b;">${order.order_number}</td>
                                 <td style="padding: 12px 16px; color: #475569;">${order.customer_name}</td>
-                                <td style="padding: 12px 16px; text-align: center; color: #475569;">${order.items_count}</td>
+                                <td style="padding: 12px 16px; color: #475569;">${order.items_count}</td>
                                 <td style="padding: 12px 16px; color: #475569; font-size: 13px;">${order.kot_printed_at || '-'}</td>
-                                <td style="padding: 12px 16px; color: #475569; font-size: 13px;">${order.bot_printed_at || '-'}</td>
                                 <td style="padding: 12px 16px; text-align: center;">
-                                    <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                                        ${kitchenItems.length > 0 ? `
-                                            <button onclick="viewKot(${order.id})" class="btn btn-primary" style="font-size: 11px;">
-                                                <i class="fas fa-print"></i> KOT
-                                            </button>
-                                        ` : ''}
-                                        ${barItems.length > 0 ? `
-                                            <button onclick="viewBot(${order.id})" class="btn btn-primary" style="font-size: 11px;">
-                                                <i class="fas fa-print"></i> BOT
-                                            </button>
-                                        ` : ''}
-                                    </div>
+                                    <button onclick="reprintKot(${order.id})" class="btn btn-primary" style="font-size: 11px; padding: 6px 16px;">
+                                        <i class="fas fa-print"></i> Re-print KOT
+                                    </button>
                                 </td>
                             </tr>
                         `;
@@ -205,108 +204,53 @@
                 });
         }
 
-        function viewKot(orderId) {
-            const modal = document.getElementById('kotModal');
-            const content = document.getElementById('kotContent');
-            const title = document.getElementById('kotModalTitle');
-
-            modal.classList.add('active');
-            title.textContent = 'Kitchen Order (KOT)';
-            content.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #dc2626;"></i>';
-
-            fetch(`/pos/order/${orderId}/kot/reprint`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const itemsHtml = data.items.map(item => `
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                                <div style="text-align: left;">
-                                    <div style="font-weight: 600; color: #1e293b;">${item.product_name}</div>
-                                    ${item.kitchen_notes ? `<div style="font-size: 12px; color: #ef4444; margin-top: 4px;">Notes: ${item.kitchen_notes}</div>` : ''}
-                                </div>
-                                <div style="font-weight: 600; color: #1e293b; min-width: 40px; text-align: right;">x${item.quantity}</div>
-                            </div>
-                        `).join('');
-
-                        content.innerHTML = `
-                            <div style="border-bottom: 2px dashed #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
-                                <h4 style="font-size: 14px; font-weight: 700; color: #1e293b;">${data.order_number}</h4>
-                                <p style="font-size: 12px; color: #475569;">${data.customer_name}</p>
-                            </div>
-
-                            <div style="margin-bottom: 16px;">
-                                ${itemsHtml}
-                            </div>
-
-                            <div style="border-top: 2px dashed #e2e8f0; padding-top: 12px; margin-top: 12px;">
-                                <button onclick="window.print()" class="w-full btn btn-primary" style="justify-content: center;">
-                                    <i class="fas fa-print"></i> Print KOT
-                                </button>
-                                <button onclick="closeKotModal()" class="w-full btn btn-secondary" style="justify-content: center; margin-top: 8px;">
-                                    <i class="fas fa-times"></i> Close
-                                </button>
-                            </div>
-                        `;
-                    } else {
-                        content.innerHTML = `<p style="color: #ef4444;">${data.message || 'Error loading KOT'}</p>`;
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    content.innerHTML = '<p style="color: #ef4444;">Failed to load KOT</p>';
-                });
+        async function reprintKot(orderId) {
+            try {
+                const res = await fetch(`/pos/order/${orderId}/kot/reprint`);
+                const data = await res.json();
+                if (data.success) {
+                    printTicket(data, 'KITCHEN ORDER (KOT)');
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (e) { console.error(e); }
         }
 
-        function viewBot(orderId) {
-            const modal = document.getElementById('kotModal');
-            const content = document.getElementById('kotContent');
-            const title = document.getElementById('kotModalTitle');
+        function printTicket(data, title) {
+            const html = `
+                <div style="text-align:center; padding: 10px 0; border-bottom: 2px solid #000; margin-bottom: 10px;">
+                    <div style="font-size: 20px; font-weight: 900; background: #000; color: #fff; display: inline-block; padding: 2px 10px; margin-bottom: 8px; border-radius: 4px;">RE-PRINT</div>
+                    <div style="font-weight: 900; font-size: 16px; color:#000;">${title}</div>
+                    <div style="font-size: 13px; font-weight: 800; color:#000; margin-top: 5px;">Order: ${data.order_number}</div>
+                    <div style="font-size: 14px; font-weight: 900; margin:4px 0; color:#000;">Table ${data.table_number || '—'}</div>
+                    <div style="font-size: 10px; color:#000;">Original: ${data.date_time}</div>
+                </div>
+                <div style="border-bottom: 1px solid #000; padding-bottom: 10px;">
+                    ${data.items.map(i => `
+                        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin:8px 0; border-bottom:1px dashed #000; padding-bottom:6px; color:#000;">
+                            <span>${i.product_name}</span>
+                            <span style="font-size:16px; font-weight:900;">×${i.quantity}</span>
+                        </div>
+                        ${i.kitchen_notes ? `<div style="font-size:11px; color:#000; margin-top:-4px; margin-bottom:6px; font-style: italic;">Note: ${i.kitchen_notes}</div>` : ''}
+                    `).join('')}
+                </div>
+                <div style="text-align:center; font-size:10px; margin-top:10px; font-weight:800;">
+                    RE-PRINTED AT: ${new Date().toLocaleString()}
+                </div>
+            `;
 
-            modal.classList.add('active');
-            title.textContent = 'Bar Order (BOT)';
-            content.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #dc2626;"></i>';
-
-            fetch(`/pos/order/${orderId}/bot/reprint`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        const itemsHtml = data.items.map(item => `
-                            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                                <div style="text-align: left;">
-                                    <div style="font-weight: 600; color: #1e293b;">${item.product_name}</div>
-                                    ${item.kitchen_notes ? `<div style="font-size: 12px; color: #ef4444; margin-top: 4px;">Notes: ${item.kitchen_notes}</div>` : ''}
-                                </div>
-                                <div style="font-weight: 600; color: #1e293b; min-width: 40px; text-align: right;">x${item.quantity}</div>
-                            </div>
-                        `).join('');
-
-                        content.innerHTML = `
-                            <div style="border-bottom: 2px dashed #e2e8f0; padding-bottom: 12px; margin-bottom: 16px;">
-                                <h4 style="font-size: 14px; font-weight: 700; color: #1e293b;">${data.order_number}</h4>
-                                <p style="font-size: 12px; color: #475569;">${data.customer_name}</p>
-                            </div>
-
-                            <div style="margin-bottom: 16px;">
-                                ${itemsHtml}
-                            </div>
-
-                            <div style="border-top: 2px dashed #e2e8f0; padding-top: 12px; margin-top: 12px;">
-                                <button onclick="window.print()" class="w-full btn btn-primary" style="justify-content: center;">
-                                    <i class="fas fa-print"></i> Print BOT
-                                </button>
-                                <button onclick="closeKotModal()" class="w-full btn btn-secondary" style="justify-content: center; margin-top: 8px;">
-                                    <i class="fas fa-times"></i> Close
-                                </button>
-                            </div>
-                        `;
-                    } else {
-                        content.innerHTML = `<p style="color: #ef4444;">${data.message || 'Error loading BOT'}</p>`;
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    content.innerHTML = '<p style="color: #ef4444;">Failed to load BOT</p>';
-                });
+            const w = window.open('', '', 'width=400');
+            w.document.write(`
+                <!DOCTYPE html><html><head><style>
+                @page { size: 80mm auto; margin: 0; }
+                body { font-family: 'Courier New', monospace; width: 100%; margin: 0; padding: 4mm 5mm; font-size: 14px; font-weight: 900 !important; color: #000; }
+                * { box-sizing: border-box; font-weight: 900 !important; }
+                div { line-height: 1.2; }
+                </style></head><body onload="window.print(); window.close();">${html.trim()}</body></html>
+            `);
+            w.document.close();
+            w.focus();
+            setTimeout(() => { w.print(); w.close(); }, 500);
         }
 
         function closeKotModal() {
@@ -315,14 +259,23 @@
 
         function resetFilters() {
             document.getElementById('searchInput').value = '';
-            loadKotHistory();
+            loadKotHistory(true);
         }
 
         document.getElementById('kotModal').addEventListener('click', (e) => {
             if (e.target.id === 'kotModal') closeKotModal();
         });
 
-        loadKotHistory();
+        // Initial load
+        loadKotHistory(true);
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            // Only auto-refresh if the search input is empty to avoid interrupting the user
+            if (!document.getElementById('searchInput').value) {
+                loadKotHistory(false);
+            }
+        }, 5000);
     </script>
 
 </body>

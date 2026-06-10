@@ -87,7 +87,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/pos/order/{order}/hold', [PosController::class, 'holdOrder'])->name('pos.order.hold');
     Route::post('/pos/order/{order}/complete', [PosController::class, 'completeOrder'])->name('pos.order.complete');
     Route::post('/pos/order/{order}/kot', [PosController::class, 'printKot'])->name('pos.order.kot');
-    Route::post('/pos/order/{order}/bot', [PosController::class, 'printBot'])->name('pos.order.bot');
     Route::post('/pos/order/{order}/customer', [PosController::class, 'updateCustomer'])->name('pos.order.customer');
     Route::post('/pos/order/{order}/waiter-bill', [PosController::class, 'printWaiterBill'])->name('pos.order.waiter_bill');
     Route::post('/pos/order/{order}/live-bill', [PosController::class, 'toggleLiveBill'])->name('pos.order.live_bill');
@@ -105,7 +104,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/kot-history', [PosController::class, 'getKotHistory'])->name('api.kot.history');
     Route::get('/pos/order/{order}/receipt/reprint', [PosController::class, 'reprintReceipt'])->name('pos.receipt.reprint');
     Route::get('/pos/order/{order}/kot/reprint', [PosController::class, 'reprintKot'])->name('pos.kot.reprint');
-    Route::get('/pos/order/{order}/bot/reprint', [PosController::class, 'reprintBot'])->name('pos.bot.reprint');
 
     // Stock adjustments
     Route::get('/inventory/adjustments', [StockAdjustmentController::class, 'index'])->name('stock.adjustments.index');
