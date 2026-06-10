@@ -728,4 +728,284 @@ class PosController extends Controller
             ]),
         ]);
     }
+
+    public function generateTableQrCode(RestaurantTable $table)
+    {
+        try {
+            $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+            $renderer = new \BaconQrCode\Renderer\Image\Svg();
+            $renderer->setHeight(200);
+            $renderer->setWidth(200);
+
+            $qrCode = \BaconQrCode\Encoder\Encoder::encode(
+                $qrUrl,
+                \BaconQrCode\Common\ErrorCorrectionLevel::H,
+                \BaconQrCode\Encoding\Encoding::UTF_8
+            );
+
+            $image = $renderer->render($qrCode);
+
+            return response($image, 200)
+                ->header('Content-Type', 'image/svg+xml')
+                ->header('Content-Disposition', 'inline; filename="table-' . $table->table_number . '-qr.svg"');
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to generate QR code: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function scanTableQr(Request $request)
+    {
+        $validated = $request->validate([
+            'qr_data' => 'required|string',
+        ]);
+
+        try {
+            $data = json_decode($validated['qr_data'], true);
+
+            if (!$data || $data['type'] !== 'table' || !isset($data['table_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid QR code format',
+                ], 422);
+            }
+
+            $table = RestaurantTable::find($data['table_id']);
+            if (!$table) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Table not found',
+                ], 404);
+            }
+
+            $activeOrder = $table->activeOrder;
+
+            return response()->json([
+                'success' => true,
+                'table' => [
+                    'id' => $table->id,
+                    'table_number' => $table->table_number,
+                    'name' => $table->name,
+                    'status' => $table->status,
+                    'section' => $table->section,
+                ],
+                'order' => $activeOrder ? [
+                    'id' => $activeOrder->id,
+                    'order_number' => $activeOrder->order_number,
+                    'status' => $activeOrder->status,
+                    'has_active_order' => true,
+                ] : null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error processing QR code: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getAllTableQrCodes()
+    {
+        try {
+            $tables = RestaurantTable::all();
+            $qrCodes = [];
+
+            foreach ($tables as $table) {
+                $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+                try {
+                    $renderer = new \BaconQrCode\Renderer\Image\Svg();
+                    $renderer->setHeight(200);
+                    $renderer->setWidth(200);
+
+                    $qrCode = \BaconQrCode\Encoder\Encoder::encode(
+                        $qrUrl,
+                        \BaconQrCode\Common\ErrorCorrectionLevel::H,
+                        \BaconQrCode\Encoding\Encoding::UTF_8
+                    );
+
+                    $image = $renderer->render($qrCode);
+
+                    $qrCodes[] = [
+                        'table_id' => $table->id,
+                        'table_number' => $table->table_number,
+                        'table_name' => $table->name,
+                        'qr_svg' => $image->__toString(),
+                    ];
+                } catch (\Exception $e) {
+                    \Log::error('QR code generation failed for table ' . $table->id . ': ' . $e->getMessage());
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'qr_codes' => $qrCodes,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to generate QR codes: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function tableQrCodesPrint()
+    {
+        $tables = RestaurantTable::orderBy('table_number')->get();
+        $qrCodes = [];
+
+        foreach ($tables as $table) {
+            $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+            try {
+                $renderer = new \BaconQrCode\Renderer\Image\Svg();
+                $renderer->setHeight(250);
+                $renderer->setWidth(250);
+
+                $qrCode = \BaconQrCode\Encoder\Encoder::encode(
+                    $qrUrl,
+                    \BaconQrCode\Common\ErrorCorrectionLevel::H,
+                    \BaconQrCode\Encoding\Encoding::UTF_8
+                );
+
+                $image = $renderer->render($qrCode);
+
+                $qrCodes[] = [
+                    'table_id' => $table->id,
+                    'table_number' => $table->table_number,
+                    'table_name' => $table->name,
+                    'section' => $table->section,
+                    'capacity' => $table->capacity,
+                    'qr_url' => $qrUrl,
+                    'qr_svg' => $image->__toString(),
+                ];
+            } catch (\Exception $e) {
+                \Log::error('QR code generation failed for table ' . $table->id . ': ' . $e->getMessage());
+            }
+        }
+
+        $modules = $this->currentUser()->role->modules()->get();
+        return view('modules.table-qr-codes', ['qrCodes' => $qrCodes, 'modules' => $modules]);
+    }
+
+    public function tableQrCodesSettings()
+    {
+        $tables = RestaurantTable::orderBy('table_number')->get();
+        $qrCodes = [];
+
+        foreach ($tables as $table) {
+            $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+            // Generate QR code using free API
+            $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qrUrl);
+
+            $qrCodes[] = [
+                'table_id' => $table->id,
+                'table_number' => $table->table_number,
+                'table_name' => $table->name,
+                'section' => $table->section,
+                'capacity' => $table->capacity,
+                'qr_url' => $qrUrl,
+                'qr_image_url' => $qrImageUrl,
+            ];
+        }
+
+        $modules = $this->currentUser()->role->modules()->get();
+        return view('modules.table-qr-settings', ['qrCodes' => $qrCodes, 'modules' => $modules]);
+    }
+
+    public function downloadTableQrCode($tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
+        $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+        try {
+            // Use free QR API to generate PNG
+            $apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=' . urlencode($qrUrl);
+            $qrImageData = file_get_contents($apiUrl);
+
+            return response($qrImageData)
+                ->header('Content-Type', 'image/png')
+                ->header('Content-Disposition', 'attachment; filename="table-' . $table->table_number . '-qr.png"');
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to generate QR code: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function tableQrMenu($tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
+        $categories = Category::where('status', 'active')->orderBy('sort_order')->get();
+        $products = Product::where('status', 'active')->get();
+
+        return view('qr-menu.table-order', [
+            'table' => $table,
+            'categories' => $categories,
+            'products' => $products,
+        ]);
+    }
+
+    public function submitTableOrder(Request $request, $tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
+
+        $validated = $request->validate([
+            'customer_name' => 'nullable|string|max:255',
+            'customer_phone' => 'nullable|string|max:20',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.kitchen_notes' => 'nullable|string',
+        ]);
+
+        try {
+            $order = Order::create([
+                'order_number' => 'ORD-' . Str::random(8),
+                'table_id' => $table->id,
+                'customer_name' => $validated['customer_name'],
+                'customer_phone' => $validated['customer_phone'],
+                'user_id' => auth()->check() ? auth()->id() : 1,
+                'order_type' => 'dine_in',
+                'status' => 'pending',
+            ]);
+
+            $subtotal = 0;
+            foreach ($validated['items'] as $item) {
+                $product = Product::find($item['product_id']);
+                $itemSubtotal = $product->price * $item['quantity'];
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item['product_id'],
+                    'product_name' => $product->name,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $product->price,
+                    'subtotal' => $itemSubtotal,
+                    'kitchen_notes' => $item['kitchen_notes'] ?? null,
+                ]);
+
+                $subtotal += $itemSubtotal;
+            }
+
+            $order->update([
+                'subtotal' => $subtotal,
+                'total' => $subtotal,
+            ]);
+
+            $table->update([
+                'status' => 'occupied',
+                'occupied_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'table_number' => $table->table_number,
+                'message' => 'Order placed successfully! Your order has been sent to the kitchen.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error placing order: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

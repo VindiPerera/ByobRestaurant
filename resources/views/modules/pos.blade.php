@@ -202,6 +202,10 @@
                 <button onclick="filterTables('main', this)" class="cat-pill" style="padding:4px 12px;">Main</button>
                 <button onclick="filterTables('vip', this)" class="cat-pill" style="padding:4px 12px;">VIP</button>
             </div>
+            <!-- QR Scanner Button -->
+            <button onclick="openQrScanner()" class="btn-blue" style="width:100%; padding:10px; font-size:12px; font-weight:700; margin-bottom:6px; background:#3b82f6;">
+                <i class="fas fa-qrcode" style="margin-right:6px;"></i>Scan Table QR
+            </button>
             <!-- Takeaway Order Button -->
             <button onclick="startTakeawayOrder()" class="btn-primary" style="width:100%; padding:10px; font-size:12px; font-weight:700;">
                 <i class="fas fa-shopping-bag" style="margin-right:6px;"></i>Takeaway Order
@@ -519,6 +523,50 @@
             <a href="{{ route('shifts.index') }}" style="flex: 1; padding: 10px; border: none; border-radius: 8px; background: #dc2626; color: #fff; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; transition: all 0.2s; display: flex; align-items: center; justify-content: center;">
                 <i class="fas fa-arrow-right" style="margin-right: 6px;"></i> Go to Shifts
             </a>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MODAL: QR Code Scanner
+══════════════════════════════════════════════════ -->
+<div id="qrScannerModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 450px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;"><i class="fas fa-qrcode" style="color:#3b82f6; margin-right:6px;"></i>Scan Table QR Code</h2>
+            <button onclick="closeQrScanner()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">&times;</button>
+        </div>
+
+        <div style="background:#f8fafc; border-radius:10px; padding:16px; margin-bottom:16px; text-align:center;">
+            <p style="font-size:13px; color:#64748b; margin:0 0 12px;">Point your camera at the table QR code</p>
+            <video id="qrVideo" style="width:100%; max-width:300px; border-radius:8px; border:2px solid #e2e8f0; display:none;"></video>
+            <div id="qrCanvasContainer" style="display:none;">
+                <canvas id="qrCanvas" style="display:none;"></canvas>
+            </div>
+            <div id="qrLoadingState" style="padding:32px 0; text-align:center;">
+                <div style="font-size:14px; color:#94a3b8; margin-bottom:8px;">Initializing camera...</div>
+                <i class="fas fa-circle-notch fa-spin" style="color:#3b82f6; font-size:24px;"></i>
+            </div>
+        </div>
+
+        <div style="background:#fef3c7; border-left:4px solid #f59e0b; border-radius:6px; padding:12px; margin-bottom:16px;">
+            <p style="font-size:12px; color:#92400e; margin:0;">
+                <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                Scanned QR data will appear below
+            </p>
+        </div>
+
+        <input type="hidden" id="scannedQrData">
+        <div id="qrScanResult" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-bottom:16px;">
+            <p style="font-size:12px; color:#16a34a; margin:0 0 8px; font-weight:600;">✓ QR Scanned Successfully</p>
+            <div id="qrResultDetails" style="font-size:11px; color:#65a30d; margin-bottom:8px;"></div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button onclick="closeQrScanner()" class="btn-secondary" style="flex:1;">Cancel</button>
+            <button onclick="confirmQrScan()" id="confirmQrBtn" class="btn-primary" style="flex:1; display:none;">
+                <i class="fas fa-check" style="margin-right:4px;"></i>Confirm & Open Table
+            </button>
         </div>
     </div>
 </div>
@@ -1999,6 +2047,173 @@
     }
 
     window.addEventListener('load', initPos);
+
+    // ═══════════════════════════════════════════
+    // QR CODE SCANNER
+    // ═══════════════════════════════════════════
+
+    let qrScanner = null;
+    let qrStream = null;
+
+    function openQrScanner() {
+        openModal('qrScannerModal');
+        initQrScanner();
+    }
+
+    function closeQrScanner() {
+        closeModal('qrScannerModal');
+        stopQrScanner();
+        resetQrScanner();
+    }
+
+    function stopQrScanner() {
+        if (qrStream) {
+            qrStream.getTracks().forEach(track => track.stop());
+            qrStream = null;
+        }
+    }
+
+    function resetQrScanner() {
+        document.getElementById('scannedQrData').value = '';
+        document.getElementById('qrScanResult').style.display = 'none';
+        document.getElementById('confirmQrBtn').style.display = 'none';
+        document.getElementById('qrLoadingState').style.display = 'block';
+        document.getElementById('qrVideo').style.display = 'none';
+        document.getElementById('qrResultDetails').innerHTML = '';
+    }
+
+    async function initQrScanner() {
+        resetQrScanner();
+        try {
+            const video = document.getElementById('qrVideo');
+            const canvas = document.getElementById('qrCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Request camera permission
+            qrStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+
+            video.srcObject = qrStream;
+            video.style.display = 'block';
+            document.getElementById('qrLoadingState').style.display = 'none';
+
+            // Start scanning
+            const scanQrCode = () => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    try {
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: 'dontInvert',
+                        });
+
+                        if (code) {
+                            const qrData = code.data;
+                            document.getElementById('scannedQrData').value = qrData;
+
+                            // Try to parse and display
+                            try {
+                                const data = JSON.parse(qrData);
+                                if (data.type === 'table' && data.table_id) {
+                                    displayQrResult(data);
+                                    stopQrScanner();
+                                }
+                            } catch (e) {
+                                console.warn('QR data is not JSON, treating as raw:', qrData);
+                                displayQrResult({ type: 'unknown', raw_data: qrData });
+                                stopQrScanner();
+                            }
+                        }
+                    } catch (err) {
+                        // jsQR not found yet, continue scanning
+                    }
+                }
+                if (qrStream) {
+                    requestAnimationFrame(scanQrCode);
+                }
+            };
+
+            // Load jsQR library
+            if (typeof jsQR === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+                script.onload = scanQrCode;
+                document.head.appendChild(script);
+            } else {
+                scanQrCode();
+            }
+        } catch (err) {
+            toast('Camera access denied or not available: ' + err.message, 'error');
+            closeQrScanner();
+        }
+    }
+
+    function displayQrResult(data) {
+        const resultDiv = document.getElementById('qrScanResult');
+        const detailsDiv = document.getElementById('qrResultDetails');
+        const confirmBtn = document.getElementById('confirmQrBtn');
+
+        if (data.type === 'table') {
+            detailsDiv.innerHTML = `
+                <strong>Table ${data.table_number}</strong><br>
+                ID: ${data.table_id}
+            `;
+            confirmBtn.style.display = 'block';
+        } else {
+            detailsDiv.innerHTML = `Raw Data: ${data.raw_data}`;
+            confirmBtn.style.display = 'none';
+        }
+
+        resultDiv.style.display = 'block';
+    }
+
+    async function confirmQrScan() {
+        const qrData = document.getElementById('scannedQrData').value;
+        if (!qrData) {
+            toast('No QR code scanned', 'error');
+            return;
+        }
+
+        showLoading();
+        try {
+            const response = await fetch('{{ route("pos.scan.qr") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ qr_data: qrData })
+            });
+
+            const result = await response.json();
+            hideLoading();
+
+            if (!result.success) {
+                toast(result.message || 'Failed to scan QR code', 'error');
+                return;
+            }
+
+            const table = result.table;
+            toast(`Table ${table.table_number} loaded successfully`, 'success');
+            closeQrScanner();
+
+            if (result.order && result.order.has_active_order) {
+                // Load existing order
+                await viewTableOrder(result.order.id);
+            } else {
+                // Start new order for this table
+                await startNewOrder(table.id);
+            }
+        } catch (error) {
+            hideLoading();
+            console.error('QR scan error:', error);
+            toast('Error processing QR code: ' + error.message, 'error');
+        }
+    }
 
     // ── Numeric-only guard for amount / quantity inputs ──
     document.addEventListener('DOMContentLoaded', function () {
