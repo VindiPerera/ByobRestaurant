@@ -72,6 +72,9 @@
 
         .badge-kitchen { background: #dbeafe; color: #1e40af; }
         .badge-bar { background: #fef3c7; color: #92400e; }
+
+        .main-content { margin-left: 256px; }
+        @media (max-width: 1024px) { .main-content { margin-left: 0; } }
     </style>
 </head>
 <body>
@@ -79,9 +82,14 @@
     <!-- Navbar -->
     @include('layouts.navbar')
 
-    <!-- Page content -->
-    <div style="padding-top: 67px;">
-        <div class="w-full px-6 py-8 max-w-screen-2xl mx-auto">
+    <!-- Main Layout -->
+    <div class="flex" style="padding-top: 67px;">
+        <!-- Sidebar -->
+        <x-sidebar :modules="$modules ?? []" />
+
+        <!-- Page content -->
+        <div class="flex-1 main-content px-6 py-8">
+            <div class="w-full max-w-screen-2xl">
 
             <!-- Page header -->
             <div class="mb-8">
@@ -277,6 +285,10 @@
             }
         }, 5000);
     </script>
+
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>

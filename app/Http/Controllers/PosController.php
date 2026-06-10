@@ -949,17 +949,31 @@ class PosController extends Controller
         ]);
 
         try {
-            $order = Order::create([
-                'order_number' => 'ORD-' . Str::random(8),
-                'table_id' => $table->id,
-                'customer_name' => $validated['customer_name'],
-                'customer_phone' => $validated['customer_phone'],
-                'user_id' => auth()->check() ? auth()->id() : 1,
-                'order_type' => 'dine_in',
-                'status' => 'pending',
-            ]);
+            // Check if table already has an active order
+            $existingOrder = Order::where('table_id', $table->id)
+                ->whereIn('status', ['pending', 'confirmed', 'hold'])
+                ->latest()
+                ->first();
 
-            $subtotal = 0;
+            if ($existingOrder) {
+                // Add items to existing order
+                $order = $existingOrder;
+                $isExistingOrder = true;
+            } else {
+                // Create new order
+                $order = Order::create([
+                    'order_number' => 'ORD-' . Str::random(8),
+                    'table_id' => $table->id,
+                    'customer_name' => $validated['customer_name'],
+                    'customer_phone' => $validated['customer_phone'],
+                    'user_id' => auth()->check() ? auth()->id() : 1,
+                    'order_type' => 'dine_in',
+                    'status' => 'pending',
+                ]);
+                $isExistingOrder = false;
+            }
+
+            // Add items to order
             foreach ($validated['items'] as $item) {
                 $product = Product::find($item['product_id']);
                 $itemSubtotal = $product->price * $item['quantity'];
@@ -973,26 +987,43 @@ class PosController extends Controller
                     'subtotal' => $itemSubtotal,
                     'kitchen_notes' => $item['kitchen_notes'] ?? null,
                 ]);
-
-                $subtotal += $itemSubtotal;
             }
 
+            // Update order totals
+            $allItems = $order->items()->get();
+            $totalSubtotal = $allItems->sum('subtotal');
             $order->update([
-                'subtotal' => $subtotal,
-                'total' => $subtotal,
+                'subtotal' => $totalSubtotal,
+                'total' => $totalSubtotal,
             ]);
 
-            $table->update([
-                'status' => 'occupied',
-                'occupied_at' => now(),
-            ]);
+            // Update customer info if provided and new order
+            if (!$isExistingOrder && $validated['customer_name']) {
+                $order->update([
+                    'customer_name' => $validated['customer_name'],
+                    'customer_phone' => $validated['customer_phone'],
+                ]);
+            }
+
+            // Ensure table is marked as occupied
+            if ($table->status !== 'occupied') {
+                $table->update([
+                    'status' => 'occupied',
+                    'occupied_at' => now(),
+                ]);
+            }
+
+            $message = $isExistingOrder
+                ? 'Items added to existing order! Your items have been sent to the kitchen.'
+                : 'Order placed successfully! Your order has been sent to the kitchen.';
 
             return response()->json([
                 'success' => true,
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'table_number' => $table->table_number,
-                'message' => 'Order placed successfully! Your order has been sent to the kitchen.',
+                'is_new_order' => !$isExistingOrder,
+                'message' => $message,
             ]);
         } catch (\Exception $e) {
             return response()->json([
