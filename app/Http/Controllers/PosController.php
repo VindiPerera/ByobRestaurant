@@ -34,6 +34,7 @@ class PosController extends Controller
         ]);
     }
 
+
     public function getTables()
     {
         $tables = RestaurantTable::with('activeOrder.items')->get()->map(function ($table) {
@@ -176,19 +177,16 @@ class PosController extends Controller
         // Find any existing item for this product in the order
         $existingItem = OrderItem::where('order_id', $order->id)
             ->where('product_id', $product->id)
-            ->where('kot_printed', false)
             ->first();
 
         if ($existingItem) {
-            // If item exists and hasn't been printed yet, increase the quantity
+            // If item exists, increase the quantity
             $existingItem->quantity += $validated['quantity'];
             $existingItem->subtotal = $existingItem->unit_price * $existingItem->quantity;
             $existingItem->save();
             $item = $existingItem;
         } else {
-            // Either new item or existing item that was already printed
-            // If item was already printed, create a new line item for the additional quantity
-            // Otherwise create the first line item
+            // Create first line item
             $item = OrderItem::create([
                 'order_id' => $order->id,
                 'product_id' => $product->id,
@@ -199,6 +197,7 @@ class PosController extends Controller
                 'kitchen_notes' => $validated['kitchen_notes'] ?? null,
                 'is_bar_item' => $validated['is_bar_item'] ?? false,
                 'kot_printed' => false,
+                'printed_qty' => 0,
             ]);
         }
 
@@ -238,8 +237,8 @@ class PosController extends Controller
     public function updateItem(Request $request, Order $order, OrderItem $item)
     {
         $validated = $request->validate([
-            'quantity'         => 'required|integer|min:1',
-            'kitchen_notes'    => 'nullable|string',
+            'quantity' => 'required|integer|min:1',
+            'kitchen_notes' => 'nullable|string',
             'discount_percent' => 'nullable|numeric|min:0|max:100',
         ]);
 
@@ -258,10 +257,10 @@ class PosController extends Controller
         $subtotal = $item->unit_price * $validated['quantity'] * (1 - $discountPercent / 100);
 
         $item->update([
-            'quantity'         => $validated['quantity'],
-            'subtotal'         => $subtotal,
+            'quantity' => $validated['quantity'],
+            'subtotal' => $subtotal,
             'discount_percent' => $discountPercent,
-            'kitchen_notes'    => $validated['kitchen_notes'] ?? $item->kitchen_notes,
+            'kitchen_notes' => $validated['kitchen_notes'] ?? $item->kitchen_notes,
         ]);
 
         $this->updateOrderTotals($order);
@@ -300,6 +299,7 @@ class PosController extends Controller
             'tax_amount' => 0,
             'total' => $total,
             'printed_at' => now(),
+            'kot_printed_at' => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         return response()->json([
@@ -325,13 +325,26 @@ class PosController extends Controller
     {
         $order->load('items');
 
-        // Get kitchen items (not bar items) that have NOT been printed yet
-        $unprintedItems = $order->items
+        // Get kitchen items (not bar items) that have quantity > printed_qty
+        $printableItems = $order->items
             ->where('is_bar_item', false)
-            ->where('kot_printed', false)
+            ->filter(function ($item) {
+                return $item->quantity > $item->printed_qty;
+            })
             ->values();
 
-        if ($unprintedItems->isEmpty()) {
+        if ($printableItems->isEmpty()) {
+            // If the order already has kitchen items printed but kot_printed_at is missing, fix it now
+            if (!$order->kot_printed_at && $order->items->where('is_bar_item', false)->count() > 0) {
+                $order->update(['kot_printed_at' => now()]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'KOT already printed, history record updated.',
+                    'order_number' => $order->order_number,
+                    'items' => []
+                ]);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'No new items to print. All items already sent to kitchen.',
@@ -339,39 +352,31 @@ class PosController extends Controller
             ], 422);
         }
 
-        // Get the IDs of unprinted items and mark them as printed
-        $unprintedItemIds = $unprintedItems->pluck('id')->toArray();
-        \DB::table('order_items')
-            ->whereIn('id', $unprintedItemIds)
-            ->update([
+        // Prepare items to print and update printed_qty
+        $itemsToPrint = [];
+        foreach ($printableItems as $item) {
+            $qtyToPrint = $item->quantity - $item->printed_qty;
+
+            $itemsToPrint[] = [
+                'product_name' => $item->product_name,
+                'quantity' => $qtyToPrint,
+                'kitchen_notes' => $item->kitchen_notes,
+            ];
+
+            // Mark as printed and update printed_qty
+            $item->update([
                 'kot_printed' => true,
-                'updated_at' => \Carbon\Carbon::now(),
+                'printed_qty' => $item->quantity,
+                'updated_at' => now(),
             ]);
+        }
+
+        $order->update(['kot_printed_at' => now()]);
 
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
-            'items' => $unprintedItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
-        ]);
-    }
-
-    public function printBot(Order $order)
-    {
-        $order->update(['bot_printed_at' => now()]);
-        $barItems = $order->items->where('is_bar_item', true)->values();
-
-        return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'items' => $barItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
+            'items' => $itemsToPrint,
         ]);
     }
 
@@ -434,12 +439,12 @@ class PosController extends Controller
             'tax_amount' => 0,
             'total' => (float) $total,
             'items' => $order->items->map(fn($item) => [
-                'product_name'    => $item->product_name,
-                'quantity'        => $item->quantity,
-                'unit_price'      => (float) $item->unit_price,
-                'subtotal'        => (float) $item->subtotal,
-                'discount_percent'=> (float) $item->discount_percent,
-                'kitchen_notes'   => $item->kitchen_notes,
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
+                'discount_percent' => (float) $item->discount_percent,
+                'kitchen_notes' => $item->kitchen_notes,
             ]),
         ]);
     }
@@ -478,8 +483,8 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'payment_method' => 'required|in:cash,card,bank_transfer,mixed',
-            'amount_paid'    => 'required|numeric|min:0',
-            'discount_type'  => 'nullable|in:percentage,fixed',
+            'amount_paid' => 'required|numeric|min:0',
+            'discount_type' => 'nullable|in:percentage,fixed',
             'discount_value' => 'nullable|numeric|min:0',
         ]);
 
@@ -493,20 +498,21 @@ class PosController extends Controller
             $discount = $validated['discount_value'];
         }
 
-        $total      = $subtotal - $discount;
+        $total = $subtotal - $discount;
         $amountPaid = $validated['amount_paid'];
-        $change     = max(0, $amountPaid - $total);
+        $change = max(0, $amountPaid - $total);
 
         $order->update([
-            'status'          => 'completed',
-            'subtotal'        => $subtotal,
+            'status' => 'completed',
+            'subtotal' => $subtotal,
             'discount_amount' => $discount,
-            'tax_amount'      => 0,
-            'total'           => $total,
-            'payment_method'  => $validated['payment_method'],
-            'amount_paid'     => $amountPaid,
-            'change_amount'   => $change,
-            'printed_at'      => now(),
+            'tax_amount' => 0,
+            'total' => $total,
+            'payment_method' => $validated['payment_method'],
+            'amount_paid' => $amountPaid,
+            'change_amount' => $change,
+            'printed_at' => now(),
+            'kot_printed_at' => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         // Record transaction in active shift
@@ -540,32 +546,32 @@ class PosController extends Controller
             $table = RestaurantTable::find($order->table_id);
             if ($table) {
                 $table->update([
-                    'status'      => 'available',
+                    'status' => 'available',
                     'occupied_at' => null,
                 ]);
             }
         }
 
         return response()->json([
-            'success'         => true,
-            'order_number'    => $order->order_number,
-            'table_number'    => $order->table?->table_number,
-            'table_name'      => $order->table?->name,
-            'customer_name'   => $order->customer_name,
-            'customer_phone'  => $order->customer_phone,
-            'subtotal'        => (float) $subtotal,
+            'success' => true,
+            'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number,
+            'table_name' => $order->table?->name,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'subtotal' => (float) $subtotal,
             'discount_amount' => (float) $discount,
-            'total'           => (float) $total,
-            'payment_method'  => $validated['payment_method'],
-            'amount_paid'     => (float) $amountPaid,
-            'change_amount'   => (float) $change,
-            'items'           => $order->items->map(fn($item) => [
-                'product_name'     => $item->product_name,
-                'quantity'         => $item->quantity,
-                'unit_price'       => (float) $item->unit_price,
-                'subtotal'         => (float) $item->subtotal,
+            'total' => (float) $total,
+            'payment_method' => $validated['payment_method'],
+            'amount_paid' => (float) $amountPaid,
+            'change_amount' => (float) $change,
+            'items' => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
                 'discount_percent' => (float) $item->discount_percent,
-                'kitchen_notes'    => $item->kitchen_notes,
+                'kitchen_notes' => $item->kitchen_notes,
             ]),
         ]);
     }
@@ -637,14 +643,15 @@ class PosController extends Controller
     public function getKotHistory(Request $request)
     {
         $query = Order::with('items')
-            ->where('status', 'completed')
             ->whereNotNull('kot_printed_at')
             ->orderBy('kot_printed_at', 'desc');
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('order_number', 'like', "%{$search}%")
-                ->orWhere('customer_name', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%");
+            });
         }
 
         $orders = $query->get();
@@ -702,26 +709,12 @@ class PosController extends Controller
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number ?? '—',
             'customer_name' => $order->customer_name,
             'order_type' => $order->order_type,
+            'date_time' => now()->format('M d, Y H:i'),
+            'is_reprint' => true,
             'items' => $kitchenItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
-        ]);
-    }
-
-    public function reprintBot(Order $order)
-    {
-        $order->load('items');
-        $barItems = $order->items->where('is_bar_item', true)->values();
-
-        return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'customer_name' => $order->customer_name,
-            'items' => $barItems->map(fn($item) => [
                 'product_name' => $item->product_name,
                 'quantity' => $item->quantity,
                 'kitchen_notes' => $item->kitchen_notes,

@@ -762,11 +762,11 @@
             } catch (e) {
                 console.error('Failed to release empty table:', e);
             }
-            // Immediately show the old table as available
+            // Immediately show the old table as available in frontend for instant feedback
             if (oldTableId) {
                 const oldCard = document.getElementById('tc-' + oldTableId);
                 if (oldCard) {
-                    oldCard.classList.remove('occupied', 'selected');
+                    oldCard.classList.remove('occupied', 'selected', 'expanded');
                     oldCard.classList.add('available');
                 }
             }
