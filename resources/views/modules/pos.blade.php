@@ -217,7 +217,71 @@
             <p style="grid-column:1/-1; text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">Loading tables…</p>
         </div>
 
+        <!-- Rooms (read-only — billing happens in Room Management) -->
+        <div style="flex-shrink:0; border-top:1px solid #e2e8f0; background:#faf5ff;">
+            <div style="padding:10px 16px; display:flex; align-items:center; justify-content:space-between;">
+                <h2 style="font-size:13px; font-weight:800; color:#6d28d9; margin:0;">
+                    <i class="fas fa-door-open" style="margin-right:6px;"></i>Rooms
+                </h2>
+                <a href="{{ route('rooms.index') }}" style="font-size:10px; color:#7c3aed; font-weight:700; text-decoration:none;">Open dashboard <i class="fas fa-arrow-right"></i></a>
+            </div>
+            <div id="posRoomsContainer" style="max-height:170px; overflow-y:auto; padding:0 12px 12px; display:grid; grid-template-columns:repeat(2,1fr); gap:8px;">
+                <p style="grid-column:1/-1; text-align:center; color:#c4b5fd; font-size:12px; padding:8px 0;">Loading rooms…</p>
+            </div>
+        </div>
+
     </div>
+
+    <script>
+    // ── Read-only Rooms panel on POS (links to Room Management for actions) ──
+    (function () {
+        const roomsUrl = '{{ route('rooms.list') }}';
+        const dashUrl = '{{ route('rooms.index') }}';
+        const csrf = '{{ csrf_token() }}';
+        const money = n => 'Rs. ' + Number(n || 0).toFixed(2);
+        const esc = s => { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; };
+
+        async function loadPosRooms() {
+            try {
+                const res = await fetch(roomsUrl, { headers: { 'X-CSRF-TOKEN': csrf } });
+                const rooms = await res.json();
+                const c = document.getElementById('posRoomsContainer');
+                if (!c) return;
+                c.innerHTML = rooms.map(r => {
+                    const occ = r.has_booking;
+                    return `<div onclick="window.location='${dashUrl}'" style="cursor:pointer; background:#fff; border:1.5px solid ${occ ? '#fecaca' : '#ddd6fe'}; border-radius:10px; padding:8px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <span style="font-weight:800; font-size:12px; color:#0f172a;">Room ${r.room_number}</span>
+                            <span style="width:8px;height:8px;border-radius:50%;background:${occ ? '#dc2626' : '#16a34a'};display:inline-block;"></span>
+                        </div>
+                        ${occ
+                            ? `<div class="pos-room-cd" data-pos-expires="${r.expires_at}" style="font-weight:800; font-size:13px; color:#6d28d9; font-variant-numeric:tabular-nums;">--:--:--</div>
+                               <div style="font-size:10px; color:#64748b;">${r.food_items_count} item(s) · ${money(r.total)}</div>`
+                            : `<div style="font-size:10px; color:#16a34a; font-weight:700;">Available</div>`}
+                    </div>`;
+                }).join('');
+            } catch (e) { /* silent */ }
+        }
+
+        function tick() {
+            document.querySelectorAll('[data-pos-expires]').forEach(el => {
+                const exp = el.getAttribute('data-pos-expires');
+                if (!exp) return;
+                let sec = Math.floor((new Date(exp).getTime() - Date.now()) / 1000);
+                const over = sec < 0; sec = Math.abs(sec);
+                const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+                const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+                const s = String(sec % 60).padStart(2, '0');
+                el.textContent = (over ? '+' : '') + `${h}:${m}:${s}`;
+                el.style.color = over ? '#dc2626' : '#6d28d9';
+            });
+        }
+
+        loadPosRooms();
+        setInterval(loadPosRooms, 15000);
+        setInterval(tick, 1000);
+    })();
+    </script>
 
     <!-- ════════════════════════════════════════
          COLUMN 2 — MENU PANEL
