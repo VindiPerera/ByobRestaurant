@@ -54,25 +54,45 @@
                 </a>
             </div>
 
-            <!-- General Settings -->
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-sm border border-blue-200 p-6 hover:shadow-md transition">
+            <!-- Room QR Codes -->
+            <div class="bg-gradient-to-br from-violet-50 to-violet-100 rounded-lg shadow-sm border border-violet-200 p-6 hover:shadow-md transition">
                 <div class="flex items-start justify-between mb-4">
                     <div>
                         <div class="flex items-center gap-3 mb-2">
-                            <i class="fas fa-cog text-blue-600 text-3xl"></i>
-                            <h3 class="text-xl font-bold text-gray-900">General Settings</h3>
+                            <i class="fas fa-qrcode text-violet-600 text-3xl"></i>
+                            <h3 class="text-xl font-bold text-gray-900">Room QR Codes</h3>
                         </div>
-                        <p class="text-gray-600 text-sm">Configure system and application settings</p>
+                        <p class="text-gray-600 text-sm">Download QR codes for each room</p>
                     </div>
                 </div>
                 <ul class="text-sm text-gray-700 space-y-2 mb-4">
-                    <li>✓ Restaurant information</li>
-                    <li>✓ System configuration</li>
-                    <li>✓ Application preferences</li>
+                    <li>✓ Download QR for individual rooms</li>
+                    <li>✓ Guests scan to order from their room</li>
+                    <li>✓ Orders add to the room bill</li>
                 </ul>
-                <button disabled class="inline-flex items-center gap-2 bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold cursor-not-allowed">
-                    <i class="fas fa-cog"></i> Coming Soon
-                </button>
+                <a href="{{ route('settings.room.qr') }}" class="inline-flex items-center gap-2 bg-violet-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-violet-700 transition">
+                    <i class="fas fa-qrcode"></i> Room QR Codes
+                </a>
+            </div>
+
+            <!-- Room Settings -->
+            <div class="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg shadow-sm border border-indigo-200 p-6 hover:shadow-md transition">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fas fa-sliders-h text-indigo-600 text-3xl"></i>
+                            <h3 class="text-xl font-bold text-gray-900">Room Settings</h3>
+                        </div>
+                        <p class="text-gray-600 text-sm">Booking duration and room base prices</p>
+                    </div>
+                </div>
+                <ul class="text-sm text-gray-700 space-y-2 mb-4">
+                    <li>✓ Set default booking duration (2h)</li>
+                    <li>✓ Configure each room's base price</li>
+                </ul>
+                <a href="{{ route('rooms.settings') }}" class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 transition">
+                    <i class="fas fa-sliders-h"></i> Room Settings
+                </a>
             </div>
         </div>
     </div>

@@ -514,7 +514,7 @@
                 if (ok && data.success) {
                     closeStartShiftModal();
                     document.getElementById('startShiftForm').reset();
-                    window.location.href = '{{ route("pos.index") }}';
+                    window.location.href = '{{ $tillLanding }}';
                 } else {
                     alert(data.message || 'Failed to start shift. Please try again.');
                     submitBtn.disabled = false;
