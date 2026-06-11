@@ -21,10 +21,17 @@ class ShiftController extends Controller
 
         $modules = $this->currentUser()->role->modules()->get();
 
+        // After starting a till, land on the user's primary workspace. Default is POS
+        // (unchanged for everyone). A room-only user (Room Staff: has Rooms, no POS) goes to Rooms.
+        $moduleRoutes = $modules->pluck('route')->all();
+        $roomOnly = in_array('rooms.index', $moduleRoutes, true) && !in_array('pos.index', $moduleRoutes, true);
+        $tillLanding = $roomOnly ? route('rooms.index') : route('pos.index');
+
         return view('modules.shifts', [
             'shifts' => $shifts,
             'activeShift' => $activeShift,
             'modules' => $modules,
+            'tillLanding' => $tillLanding,
         ]);
     }
 
