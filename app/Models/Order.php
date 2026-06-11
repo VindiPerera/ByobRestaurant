@@ -9,6 +9,7 @@ class Order extends Model
     protected $fillable = [
         'order_number',
         'table_id',
+        'room_booking_id',
         'customer_id',
         'customer_name',
         'customer_phone',
@@ -50,6 +51,11 @@ class Order extends Model
     public function table()
     {
         return $this->belongsTo(RestaurantTable::class, 'table_id');
+    }
+
+    public function roomBooking()
+    {
+        return $this->belongsTo(RoomBooking::class);
     }
 
     public function customer()
