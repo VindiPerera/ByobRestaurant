@@ -16,6 +16,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\QrMenuController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\RoomController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -31,6 +32,10 @@ Route::get('/qr-code/pdf', [QrMenuController::class, 'downloadQrPdf'])->name('qr
 // Public Table QR Ordering (customers scan table QR with phones)
 Route::get('/table/{tableId}/order', [PosController::class, 'tableQrMenu'])->name('table.order.menu');
 Route::post('/table/{tableId}/order/submit', [PosController::class, 'submitTableOrder'])->name('table.order.submit');
+
+// Public Room QR Ordering (room guests scan room QR with phones)
+Route::get('/room/{roomId}/order', [RoomController::class, 'roomQrMenu'])->name('room.order.menu');
+Route::post('/room/{roomId}/order/submit', [RoomController::class, 'submitRoomOrder'])->name('room.order.submit');
 
 // Auth Routes
 Route::get('/login', [LoginController::class, 'show'])->name('login');
@@ -80,6 +85,26 @@ Route::middleware('auth')->group(function () {
     Route::get('/shifts/active', [ShiftController::class, 'getActiveShift'])->name('shifts.active');
     Route::get('/shifts/{shift}', [ShiftController::class, 'getShiftDetails'])->name('shifts.details');
     Route::post('/shifts/{shift}/transaction', [ShiftController::class, 'recordTransaction'])->name('shifts.transaction');
+
+    // Room Management routes
+    Route::get('/rooms', [RoomController::class, 'index'])->name('rooms.index');
+    Route::get('/rooms/list', [RoomController::class, 'getRooms'])->name('rooms.list');
+    Route::get('/rooms/history', [RoomController::class, 'roomHistory'])->name('rooms.history');
+    Route::post('/rooms/{room}/book', [RoomController::class, 'book'])->name('rooms.book');
+    Route::get('/rooms/booking/{booking}', [RoomController::class, 'getBooking'])->name('rooms.booking.show');
+    Route::post('/rooms/booking/{booking}/extension', [RoomController::class, 'addExtension'])->name('rooms.booking.extension');
+    Route::post('/rooms/booking/{booking}/customer', [RoomController::class, 'updateCustomer'])->name('rooms.booking.customer');
+    Route::post('/rooms/booking/{booking}/item', [RoomController::class, 'addItem'])->name('rooms.booking.item.add');
+    Route::delete('/rooms/booking/{booking}/item/{item}', [RoomController::class, 'removeItem'])->name('rooms.booking.item.remove');
+    Route::put('/rooms/booking/{booking}/item/{item}', [RoomController::class, 'updateItem'])->name('rooms.booking.item.update');
+    Route::post('/rooms/booking/{booking}/kot', [RoomController::class, 'printKot'])->name('rooms.booking.kot');
+    Route::post('/rooms/booking/{booking}/checkout', [RoomController::class, 'checkout'])->name('rooms.booking.checkout');
+    Route::post('/rooms/booking/{booking}/cancel', [RoomController::class, 'cancelBooking'])->name('rooms.booking.cancel');
+    Route::get('/rooms/{room}/qr-code', [RoomController::class, 'generateRoomQrCode'])->name('rooms.qr');
+    Route::get('/settings/room-qr-codes', [RoomController::class, 'roomQrCodesSettings'])->name('settings.room.qr');
+    Route::get('/settings/room/{roomId}/qr-download', [RoomController::class, 'downloadRoomQrCode'])->name('settings.room.qr.download');
+    Route::get('/settings/rooms', [RoomController::class, 'settings'])->name('rooms.settings');
+    Route::post('/settings/rooms', [RoomController::class, 'updateSettings'])->name('rooms.settings.update');
 
     // POS routes
     Route::get('/pos', [PosController::class, 'index'])->name('pos.index');
