@@ -37,6 +37,16 @@
             </div>
         @endif
 
+        <!-- Search Bar -->
+        <div class="mb-6">
+            <div class="relative">
+                <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></i>
+                <input type="text" id="productSearch" placeholder="Search by product name…"
+                       class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                       onkeyup="filterProducts(this.value)">
+            </div>
+        </div>
+
         <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
             @if($products->count() > 0)
                 <div class="overflow-x-auto">
@@ -134,4 +144,20 @@
             @endif
         </div>
     </div>
+
+    <script>
+        function filterProducts(searchValue) {
+            const rows = document.querySelectorAll('tbody tr');
+            const query = searchValue.toLowerCase().trim();
+
+            rows.forEach(row => {
+                const productName = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                if (productName.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    </script>
 @endsection
