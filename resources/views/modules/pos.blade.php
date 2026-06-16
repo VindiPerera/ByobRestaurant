@@ -227,12 +227,6 @@
         <!-- Toolbar -->
         <div style="padding:16px; background:#fff; border-bottom:1px solid #e2e8f0; flex-shrink:0;">
             <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
-                <div style="flex:1; position:relative;">
-                    <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px;"></i>
-                    <input type="text" id="searchInput" placeholder="Search products or scan barcode…"
-                           style="width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none; background:#f8fafc;"
-                           onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
-                </div>
                 <select id="orderTypeSelect"
                         style="padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; background:#f8fafc; color:#374151; outline:none; cursor:pointer;">
                     <option value="dine_in">Dine In</option>
@@ -242,8 +236,15 @@
                 </select>
             </div>
             <!-- Categories -->
-            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:2px;" id="categoriesContainer">
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px;" id="categoriesContainer">
                 <button class="cat-pill active" data-category="0" onclick="selectCategory(0, this)">All</button>
+            </div>
+            <!-- Search Bar -->
+            <div style="position:relative;">
+                <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px;"></i>
+                <input type="text" id="searchInput" placeholder="Search by product name…"
+                       style="width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none; background:#f8fafc;"
+                       onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
             </div>
         </div>
 
