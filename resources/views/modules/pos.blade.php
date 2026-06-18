@@ -1059,21 +1059,50 @@
         renderBill();
         renderProducts();
 
-        const res = await fetch('{{ route("pos.item.add", ":id") }}'.replace(':id', currentOrder.id), {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: productId, quantity: 1 })
-        });
-        const data = await res.json();
-        if (data.success) {
-            await syncOrder();
-            if (data.low_stock_alert) {
-                toast(data.low_stock_alert, 'warning');
+        try {
+            const res = await fetch('{{ route("pos.item.add", ":id") }}'.replace(':id', currentOrder.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Patch the optimistic item with the real server ID — no re-fetch needed
+                const optimisticItem = currentOrder.items.find(function(i) {
+                    return i.product_id === productId && i.id === null;
+                });
+                if (optimisticItem) {
+                    optimisticItem.id = data.item_id;
+                    optimisticItem.kot_printed = data.item_kot_printed || false;
+                } else {
+                    // Item was merged into an existing row server-side; patch that row's id
+                    const existingItem = currentOrder.items.find(function(i) {
+                        return i.product_id === productId;
+                    });
+                    if (existingItem) existingItem.id = data.item_id;
+                }
+                renderBill();
+                if (data.low_stock_alert) {
+                    toast(data.low_stock_alert, 'warning');
+                }
+            } else {
+                // Roll back optimistic update on failure
+                if (existing) {
+                    existing.quantity--;
+                    existing.subtotal = existing.unit_price * existing.quantity;
+                } else {
+                    currentOrder.items = currentOrder.items.filter(function(i) {
+                        return !(i.product_id === productId && i.id === null);
+                    });
+                }
+                if (stockCache.hasOwnProperty(productId)) stockCache[productId]++;
+                recalcOrderTotals();
+                renderBill();
+                renderProducts();
+                toast('Failed to add item to order', 'error');
             }
-        } else {
-            // Restore stock on failure
-            if (stockCache.hasOwnProperty(productId)) stockCache[productId]++;
-            renderProducts();
+        } catch (e) {
+            console.error('Add item error:', e);
             toast('Failed to add item to order', 'error');
         }
     }
@@ -1107,12 +1136,11 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: item.discount_percent || 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to update quantity', 'error'); });
         delete qtyLock[itemId];
     }
 
@@ -1128,12 +1156,11 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: item.discount_percent || 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to update quantity', 'error'); });
         delete qtyLock[itemId];
     }
 
@@ -1168,12 +1195,11 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: newQty, discount_percent: item.discount_percent || 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to update quantity', 'error'); });
         delete qtyLock[itemId];
     }
 
@@ -1203,12 +1229,11 @@
         recalcOrderTotals();
         renderBill();
 
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: percent })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to apply discount', 'error'); });
     }
 
     async function clearItemDiscount(itemId) {
@@ -1220,12 +1245,11 @@
         recalcOrderTotals();
         renderBill();
 
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to clear discount', 'error'); });
     }
 
     async function removeItem(itemId) {
@@ -1237,11 +1261,10 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.remove", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.remove", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'DELETE',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to remove item', 'error'); });
     }
 
     function recalcOrderTotals() {
