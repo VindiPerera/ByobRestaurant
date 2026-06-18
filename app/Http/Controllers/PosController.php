@@ -36,7 +36,7 @@ class PosController extends Controller
 
     public function getTables()
     {
-        $tables = RestaurantTable::with('activeOrder.items')->get()->map(function ($table) {
+        $tables = RestaurantTable::with('activeOrder.items')->orderBy('table_number')->get()->map(function ($table) {
             $activeOrder = $table->activeOrder;
             return [
                 'id' => $table->id,

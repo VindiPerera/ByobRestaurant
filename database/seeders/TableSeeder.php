@@ -9,8 +9,8 @@ class TableSeeder extends Seeder
 {
     public function run(): void
     {
-        // Main section - 10 tables
-        for ($i = 1; $i <= 10; $i++) {
+        // Main section - 15 tables
+        for ($i = 1; $i <= 15; $i++) {
             RestaurantTable::create([
                 'table_number' => $i,
                 'name' => 'Table ' . $i,

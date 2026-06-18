@@ -22,8 +22,8 @@
         .table-card {
             cursor: pointer;
             border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px;
+            border-radius: 10px;
+            padding: 7px 6px;
             text-align: center;
             transition: all 0.18s ease;
             position: relative;
@@ -209,7 +209,7 @@
         </div>
 
         <!-- Tables list -->
-        <div style="flex:1; overflow-y:auto; padding:12px; display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start;" id="tablesContainer">
+        <div style="flex:1; overflow-y:auto; padding:10px; display:grid; grid-template-columns: repeat(2, 1fr); gap: 7px; align-content: start;" id="tablesContainer">
             <p style="grid-column:1/-1; text-align:center; color:#94a3b8; padding:32px 0; font-size:13px;">Loading tables…</p>
         </div>
 
@@ -238,7 +238,7 @@
                 </select>
             </div>
             <!-- Categories -->
-            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:2px;" id="categoriesContainer">
+            <div style="display:flex; flex-wrap:wrap; gap:8px; padding-bottom:2px;" id="categoriesContainer">
                 <button class="cat-pill active" data-category="0" onclick="selectCategory(0, this)">All</button>
             </div>
         </div>
@@ -649,8 +649,8 @@
 
             return '<div id="tc-' + table.id + '" class="table-card ' + table.status + (isSelected ? ' selected' : '') + '" onclick="' + clickFn + '">'
                 + vipBadge
-                + '<div style="font-size:20px; font-weight:900; color:#0f172a; line-height:1;">' + table.table_number + '</div>'
-                + '<div style="font-size:11px; font-weight:600; color:#64748b; margin-top:2px;">' + escapeHtml(table.name) + '</div>'
+                + '<div style="font-size:16px; font-weight:900; color:#0f172a; line-height:1;">' + table.table_number + '</div>'
+                + '<div style="font-size:10px; font-weight:600; color:#64748b; margin-top:2px;">' + escapeHtml(table.name) + '</div>'
                 
                 + itemBadge + timeLabel + actionBar
                 + '</div>';
@@ -1243,8 +1243,10 @@
     }
 
     function renderBill() {
+        const billEl = document.getElementById('billItems');
         if (!currentOrder || !currentOrder.items) {
-            document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table or create takeaway order</p></div>';
+            billEl.style.display = 'block';
+            billEl.innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table or create takeaway order</p></div>';
             setBottomControls(false);
             updateCloseButtonVisibility(false);
             return;
@@ -1253,10 +1255,15 @@
         const hasItems = currentOrder.items && currentOrder.items.length > 0;
 
         if (!hasItems) {
-            document.getElementById('billItems').innerHTML =
+            billEl.style.display = 'block';
+            billEl.innerHTML =
                 '<p style="text-align:center; color:#94a3b8; font-size:13px; padding:32px 0;"><i class="fas fa-plus-circle" style="display:block; font-size:24px; margin-bottom:8px;"></i>No items yet — tap a product</p>';
         } else {
-            document.getElementById('billItems').innerHTML = currentOrder.items.map(function(item) {
+            billEl.style.display = 'grid';
+            billEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
+            billEl.style.gap = '8px';
+            billEl.style.alignItems = 'start';
+            billEl.innerHTML = currentOrder.items.map(function(item) {
                 const discPercent   = item.discount_percent || 0;
                 const discRowOpen   = item.id && openDiscountRows.has(item.id);
                 const atStockLimit  = stockCache.hasOwnProperty(item.product_id) && stockCache[item.product_id] <= 0;
@@ -1291,7 +1298,7 @@
                     : '';
 
                 const removeBtn = item.id
-                    ? '<button type="button" onclick="removeItem(' + item.id + ')" style="font-size:10px; color:#ef4444; background:none; border:none; cursor:pointer; padding:0; margin-top:2px; display:block;"><i class="fas fa-trash"></i> Remove</button>'
+                    ? '<button type="button" onclick="removeItem(' + item.id + ')" title="Remove" style="font-size:11px; color:#ef4444; background:none; border:none; cursor:pointer; padding:2px 3px; line-height:1;"><i class="fas fa-trash"></i></button>'
                     : '';
 
                 // Discount toggle button (amber when active, grey when not)
@@ -1299,8 +1306,8 @@
                     ? 'background:#fef3c7; color:#92400e; border:1px solid #fde68a;'
                     : 'background:#f1f5f9; color:#64748b; border:1px solid #e2e8f0;';
                 const discBtn = item.id
-                    ? '<button type="button" onclick="toggleDiscountRow(' + item.id + ')" '
-                      + 'style="font-size:9px; ' + discBtnStyle + ' border-radius:5px; padding:2px 6px; cursor:pointer; font-weight:700; margin-top:3px; display:block;">% off</button>'
+                    ? '<button type="button" onclick="toggleDiscountRow(' + item.id + ')" title="Discount" '
+                      + 'style="font-size:9px; ' + discBtnStyle + ' border-radius:5px; padding:2px 6px; cursor:pointer; font-weight:700; line-height:1.3;">% off</button>'
                     : '';
 
                 // Inline discount input row (only when open)
@@ -1321,33 +1328,34 @@
 
                 let thumbHtml = '';
                 if (item.image) {
-                    thumbHtml = '<div style="width:44px; height:44px; border-radius:8px; overflow:hidden; flex-shrink:0; background:#f1f5f9;">'
+                    thumbHtml = '<div style="width:30px; height:30px; border-radius:7px; overflow:hidden; flex-shrink:0; background:#f1f5f9;">'
                         + '<img src="/storage/' + item.image + '" alt="' + escapeHtml(item.product_name) + '" style="width:100%; height:100%; object-fit:cover;">'
                         + '</div>';
                 }
 
-                return '<div style="padding:10px 0; border-bottom:1px solid #f1f5f9;">'
-                    // Main row
-                    + '<div style="display:flex; align-items:flex-start; gap:8px;">'
+                return '<div style="background:#fff; border:1px solid #eef2f7; border-radius:10px; padding:8px;">'
+                    // Header: thumb + name
+                    + '<div style="display:flex; align-items:center; gap:6px;">'
                     + thumbHtml
                     + '<div style="flex:1; min-width:0;">'
-                    + '<div style="display:flex; align-items:flex-start; gap:4px; overflow:hidden;">'
+                    + '<div style="display:flex; align-items:center; gap:4px; overflow:hidden;">'
                     + '<p style="font-size:13px; font-weight:700; color:#0f172a; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + escapeHtml(item.product_name) + '</p>'
                     + discBadge
                     + '</div>'
-                    + '<p style="font-size:11px; color:#94a3b8; margin:2px 0 0;">Rs. ' + item.unit_price.toFixed(2) + ' each</p>'
                     + noteHtml
                     + '</div>'
-                    + '<div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0;">'
+                    + '</div>'
+                    // Bottom: qty controls + price/actions
+                    + '<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:6px; margin-top:7px;">'
+                    + '<div style="display:flex; flex-direction:column; align-items:flex-start; flex-shrink:0;">'
                     + '<div style="display:flex; align-items:center; gap:4px;">'
                     + decBtn + qtyControl + incBtn
                     + '</div>'
                     + stockLeft
                     + '</div>'
-                    + '<div style="min-width:68px; text-align:right; flex-shrink:0;">'
-                    + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0;">Rs. ' + item.subtotal.toFixed(2) + '</p>'
-                    + removeBtn
-                    + discBtn
+                    + '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px; min-width:0;">'
+                    + '<p style="font-size:13px; font-weight:800; color:#0f172a; margin:0; white-space:nowrap;">Rs. ' + item.subtotal.toFixed(2) + '</p>'
+                    + '<div style="display:flex; align-items:center; gap:6px;">' + discBtn + removeBtn + '</div>'
                     + '</div>'
                     + '</div>'
                     // Discount input row (toggleable)
@@ -1897,7 +1905,9 @@
         currentTable = null;
         selectedPaymentMethod = 'cash';
 
-        document.getElementById('billItems').innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table or create takeaway order</p></div>';
+        const billEl = document.getElementById('billItems');
+        billEl.style.display = 'block';
+        billEl.innerHTML = '<div style="text-align:center; padding:48px 0; color:#cbd5e1;"><i class="fas fa-utensils" style="font-size:36px; margin-bottom:12px; display:block;"></i><p style="font-size:13px; margin:0;">Select a table or create takeaway order</p></div>';
         document.getElementById('selectedTableLabel').innerHTML = '<i class="fas fa-arrow-left" style="font-size:11px; margin-right:4px;"></i>Select a table or create takeaway order';
         document.getElementById('customerInfoToggle').style.display     = 'none';
         document.getElementById('customerInfoSection').style.display    = 'none';
