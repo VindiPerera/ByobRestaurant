@@ -28,6 +28,10 @@ Route::get('/qr-code/generate', [QrMenuController::class, 'generateQr'])->name('
 Route::get('/qr-code/download', [QrMenuController::class, 'downloadQr'])->name('qr.download');
 Route::get('/qr-code/pdf', [QrMenuController::class, 'downloadQrPdf'])->name('qr.pdf');
 
+// Public Table QR Ordering (customers scan table QR with phones)
+Route::get('/table/{tableId}/order', [PosController::class, 'tableQrMenu'])->name('table.order.menu');
+Route::post('/table/{tableId}/order/submit', [PosController::class, 'submitTableOrder'])->name('table.order.submit');
+
 // Auth Routes
 Route::get('/login', [LoginController::class, 'show'])->name('login');
 Route::post('/login', [LoginController::class, 'store']);
@@ -87,7 +91,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/pos/order/{order}/hold', [PosController::class, 'holdOrder'])->name('pos.order.hold');
     Route::post('/pos/order/{order}/complete', [PosController::class, 'completeOrder'])->name('pos.order.complete');
     Route::post('/pos/order/{order}/kot', [PosController::class, 'printKot'])->name('pos.order.kot');
-    Route::post('/pos/order/{order}/bot', [PosController::class, 'printBot'])->name('pos.order.bot');
     Route::post('/pos/order/{order}/customer', [PosController::class, 'updateCustomer'])->name('pos.order.customer');
     Route::post('/pos/order/{order}/waiter-bill', [PosController::class, 'printWaiterBill'])->name('pos.order.waiter_bill');
     Route::post('/pos/order/{order}/live-bill', [PosController::class, 'toggleLiveBill'])->name('pos.order.live_bill');
@@ -98,6 +101,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos/held-orders', [PosController::class, 'getHeldOrders'])->name('pos.held');
     Route::post('/pos/order/{order}/pay', [PosController::class, 'payOrder'])->name('pos.order.pay');
 
+    // QR Code routes
+    Route::get('/pos/table/{table}/qr-code', [PosController::class, 'generateTableQrCode'])->name('pos.table.qr');
+    Route::post('/pos/scan-qr', [PosController::class, 'scanTableQr'])->name('pos.scan.qr');
+    Route::get('/pos/qr-codes/all', [PosController::class, 'getAllTableQrCodes'])->name('pos.qr.all');
+    Route::get('/pos/qr-codes/print', [PosController::class, 'tableQrCodesPrint'])->name('pos.qr.print');
+    Route::get('/settings/table-qr-codes', [PosController::class, 'tableQrCodesSettings'])->name('settings.table.qr');
+    Route::get('/settings/table/{tableId}/qr-download', [PosController::class, 'downloadTableQrCode'])->name('settings.table.qr.download');
+
     // Order & KOT History routes
     Route::get('/order-history', [PosController::class, 'orderHistory'])->name('order.history');
     Route::get('/api/order-history', [PosController::class, 'getOrderHistory'])->name('api.order.history');
@@ -105,7 +116,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/kot-history', [PosController::class, 'getKotHistory'])->name('api.kot.history');
     Route::get('/pos/order/{order}/receipt/reprint', [PosController::class, 'reprintReceipt'])->name('pos.receipt.reprint');
     Route::get('/pos/order/{order}/kot/reprint', [PosController::class, 'reprintKot'])->name('pos.kot.reprint');
-    Route::get('/pos/order/{order}/bot/reprint', [PosController::class, 'reprintBot'])->name('pos.bot.reprint');
 
     // Stock adjustments
     Route::get('/inventory/adjustments', [StockAdjustmentController::class, 'index'])->name('stock.adjustments.index');

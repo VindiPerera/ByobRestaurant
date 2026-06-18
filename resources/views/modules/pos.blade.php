@@ -202,6 +202,10 @@
                 <button onclick="filterTables('main', this)" class="cat-pill" style="padding:4px 12px;">Main</button>
                 <button onclick="filterTables('vip', this)" class="cat-pill" style="padding:4px 12px;">VIP</button>
             </div>
+            <!-- QR Scanner Button -->
+            <button onclick="openQrScanner()" class="btn-blue" style="width:100%; padding:10px; font-size:12px; font-weight:700; margin-bottom:6px; background:#3b82f6;">
+                <i class="fas fa-qrcode" style="margin-right:6px;"></i>Scan Table QR
+            </button>
             <!-- Takeaway Order Button -->
             <button onclick="startTakeawayOrder()" class="btn-primary" style="width:100%; padding:10px; font-size:12px; font-weight:700;">
                 <i class="fas fa-shopping-bag" style="margin-right:6px;"></i>Takeaway Order
@@ -223,12 +227,6 @@
         <!-- Toolbar -->
         <div style="padding:16px; background:#fff; border-bottom:1px solid #e2e8f0; flex-shrink:0;">
             <div style="display:flex; gap:10px; margin-bottom:12px; align-items:center;">
-                <div style="flex:1; position:relative;">
-                    <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px;"></i>
-                    <input type="text" id="searchInput" placeholder="Search products or scan barcode…"
-                           style="width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none; background:#f8fafc;"
-                           onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
-                </div>
                 <select id="orderTypeSelect"
                         style="padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; background:#f8fafc; color:#374151; outline:none; cursor:pointer;">
                     <option value="dine_in">Dine In</option>
@@ -238,8 +236,15 @@
                 </select>
             </div>
             <!-- Categories -->
-            <div style="display:flex; flex-wrap:wrap; gap:8px; padding-bottom:2px;" id="categoriesContainer">
+            <div style="display:flex; flex-wrap:wrap; gap:8px; padding-bottom:8px;" id="categoriesContainer">
                 <button class="cat-pill active" data-category="0" onclick="selectCategory(0, this)">All</button>
+            </div>
+            <!-- Search Bar -->
+            <div style="position:relative;">
+                <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:13px;"></i>
+                <input type="text" id="searchInput" placeholder="Search by product name…"
+                       style="width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none; background:#f8fafc;"
+                       onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
             </div>
         </div>
 
@@ -523,6 +528,50 @@
     </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════
+     MODAL: QR Code Scanner
+══════════════════════════════════════════════════ -->
+<div id="qrScannerModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 450px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="font-size:18px; font-weight:800; color:#0f172a; margin:0;"><i class="fas fa-qrcode" style="color:#3b82f6; margin-right:6px;"></i>Scan Table QR Code</h2>
+            <button onclick="closeQrScanner()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">&times;</button>
+        </div>
+
+        <div style="background:#f8fafc; border-radius:10px; padding:16px; margin-bottom:16px; text-align:center;">
+            <p style="font-size:13px; color:#64748b; margin:0 0 12px;">Point your camera at the table QR code</p>
+            <video id="qrVideo" style="width:100%; max-width:300px; border-radius:8px; border:2px solid #e2e8f0; display:none;"></video>
+            <div id="qrCanvasContainer" style="display:none;">
+                <canvas id="qrCanvas" style="display:none;"></canvas>
+            </div>
+            <div id="qrLoadingState" style="padding:32px 0; text-align:center;">
+                <div style="font-size:14px; color:#94a3b8; margin-bottom:8px;">Initializing camera...</div>
+                <i class="fas fa-circle-notch fa-spin" style="color:#3b82f6; font-size:24px;"></i>
+            </div>
+        </div>
+
+        <div style="background:#fef3c7; border-left:4px solid #f59e0b; border-radius:6px; padding:12px; margin-bottom:16px;">
+            <p style="font-size:12px; color:#92400e; margin:0;">
+                <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                Scanned QR data will appear below
+            </p>
+        </div>
+
+        <input type="hidden" id="scannedQrData">
+        <div id="qrScanResult" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px; margin-bottom:16px;">
+            <p style="font-size:12px; color:#16a34a; margin:0 0 8px; font-weight:600;">✓ QR Scanned Successfully</p>
+            <div id="qrResultDetails" style="font-size:11px; color:#65a30d; margin-bottom:8px;"></div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button onclick="closeQrScanner()" class="btn-secondary" style="flex:1;">Cancel</button>
+            <button onclick="confirmQrScan()" id="confirmQrBtn" class="btn-primary" style="flex:1; display:none;">
+                <i class="fas fa-check" style="margin-right:4px;"></i>Confirm & Open Table
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Toast notification -->
 <div id="toast"></div>
 
@@ -714,11 +763,11 @@
             } catch (e) {
                 console.error('Failed to release empty table:', e);
             }
-            // Immediately show the old table as available
+            // Immediately show the old table as available in frontend for instant feedback
             if (oldTableId) {
                 const oldCard = document.getElementById('tc-' + oldTableId);
                 if (oldCard) {
-                    oldCard.classList.remove('occupied', 'selected');
+                    oldCard.classList.remove('occupied', 'selected', 'expanded');
                     oldCard.classList.add('available');
                 }
             }
@@ -1010,21 +1059,50 @@
         renderBill();
         renderProducts();
 
-        const res = await fetch('{{ route("pos.item.add", ":id") }}'.replace(':id', currentOrder.id), {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product_id: productId, quantity: 1 })
-        });
-        const data = await res.json();
-        if (data.success) {
-            await syncOrder();
-            if (data.low_stock_alert) {
-                toast(data.low_stock_alert, 'warning');
+        try {
+            const res = await fetch('{{ route("pos.item.add", ":id") }}'.replace(':id', currentOrder.id), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ product_id: productId, quantity: 1 })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Patch the optimistic item with the real server ID — no re-fetch needed
+                const optimisticItem = currentOrder.items.find(function(i) {
+                    return i.product_id === productId && i.id === null;
+                });
+                if (optimisticItem) {
+                    optimisticItem.id = data.item_id;
+                    optimisticItem.kot_printed = data.item_kot_printed || false;
+                } else {
+                    // Item was merged into an existing row server-side; patch that row's id
+                    const existingItem = currentOrder.items.find(function(i) {
+                        return i.product_id === productId;
+                    });
+                    if (existingItem) existingItem.id = data.item_id;
+                }
+                renderBill();
+                if (data.low_stock_alert) {
+                    toast(data.low_stock_alert, 'warning');
+                }
+            } else {
+                // Roll back optimistic update on failure
+                if (existing) {
+                    existing.quantity--;
+                    existing.subtotal = existing.unit_price * existing.quantity;
+                } else {
+                    currentOrder.items = currentOrder.items.filter(function(i) {
+                        return !(i.product_id === productId && i.id === null);
+                    });
+                }
+                if (stockCache.hasOwnProperty(productId)) stockCache[productId]++;
+                recalcOrderTotals();
+                renderBill();
+                renderProducts();
+                toast('Failed to add item to order', 'error');
             }
-        } else {
-            // Restore stock on failure
-            if (stockCache.hasOwnProperty(productId)) stockCache[productId]++;
-            renderProducts();
+        } catch (e) {
+            console.error('Add item error:', e);
             toast('Failed to add item to order', 'error');
         }
     }
@@ -1058,12 +1136,11 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: item.discount_percent || 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to update quantity', 'error'); });
         delete qtyLock[itemId];
     }
 
@@ -1079,12 +1156,11 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: item.discount_percent || 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to update quantity', 'error'); });
         delete qtyLock[itemId];
     }
 
@@ -1119,12 +1195,11 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: newQty, discount_percent: item.discount_percent || 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to update quantity', 'error'); });
         delete qtyLock[itemId];
     }
 
@@ -1154,12 +1229,11 @@
         recalcOrderTotals();
         renderBill();
 
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: percent })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to apply discount', 'error'); });
     }
 
     async function clearItemDiscount(itemId) {
@@ -1171,12 +1245,11 @@
         recalcOrderTotals();
         renderBill();
 
-        await fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.update", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'PUT',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity: item.quantity, discount_percent: 0 })
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to clear discount', 'error'); });
     }
 
     async function removeItem(itemId) {
@@ -1188,11 +1261,10 @@
         recalcOrderTotals();
         renderBill();
         renderProducts();
-        await fetch('{{ route("pos.item.remove", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
+        fetch('{{ route("pos.item.remove", [":id", ":item"]) }}'.replace(':id', currentOrder.id).replace(':item', itemId), {
             method: 'DELETE',
             headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-        });
-        await syncOrder();
+        }).catch(function() { toast('Failed to remove item', 'error'); });
     }
 
     function recalcOrderTotals() {
@@ -2009,6 +2081,173 @@
     }
 
     window.addEventListener('load', initPos);
+
+    // ═══════════════════════════════════════════
+    // QR CODE SCANNER
+    // ═══════════════════════════════════════════
+
+    let qrScanner = null;
+    let qrStream = null;
+
+    function openQrScanner() {
+        openModal('qrScannerModal');
+        initQrScanner();
+    }
+
+    function closeQrScanner() {
+        closeModal('qrScannerModal');
+        stopQrScanner();
+        resetQrScanner();
+    }
+
+    function stopQrScanner() {
+        if (qrStream) {
+            qrStream.getTracks().forEach(track => track.stop());
+            qrStream = null;
+        }
+    }
+
+    function resetQrScanner() {
+        document.getElementById('scannedQrData').value = '';
+        document.getElementById('qrScanResult').style.display = 'none';
+        document.getElementById('confirmQrBtn').style.display = 'none';
+        document.getElementById('qrLoadingState').style.display = 'block';
+        document.getElementById('qrVideo').style.display = 'none';
+        document.getElementById('qrResultDetails').innerHTML = '';
+    }
+
+    async function initQrScanner() {
+        resetQrScanner();
+        try {
+            const video = document.getElementById('qrVideo');
+            const canvas = document.getElementById('qrCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Request camera permission
+            qrStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+
+            video.srcObject = qrStream;
+            video.style.display = 'block';
+            document.getElementById('qrLoadingState').style.display = 'none';
+
+            // Start scanning
+            const scanQrCode = () => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    try {
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                            inversionAttempts: 'dontInvert',
+                        });
+
+                        if (code) {
+                            const qrData = code.data;
+                            document.getElementById('scannedQrData').value = qrData;
+
+                            // Try to parse and display
+                            try {
+                                const data = JSON.parse(qrData);
+                                if (data.type === 'table' && data.table_id) {
+                                    displayQrResult(data);
+                                    stopQrScanner();
+                                }
+                            } catch (e) {
+                                console.warn('QR data is not JSON, treating as raw:', qrData);
+                                displayQrResult({ type: 'unknown', raw_data: qrData });
+                                stopQrScanner();
+                            }
+                        }
+                    } catch (err) {
+                        // jsQR not found yet, continue scanning
+                    }
+                }
+                if (qrStream) {
+                    requestAnimationFrame(scanQrCode);
+                }
+            };
+
+            // Load jsQR library
+            if (typeof jsQR === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+                script.onload = scanQrCode;
+                document.head.appendChild(script);
+            } else {
+                scanQrCode();
+            }
+        } catch (err) {
+            toast('Camera access denied or not available: ' + err.message, 'error');
+            closeQrScanner();
+        }
+    }
+
+    function displayQrResult(data) {
+        const resultDiv = document.getElementById('qrScanResult');
+        const detailsDiv = document.getElementById('qrResultDetails');
+        const confirmBtn = document.getElementById('confirmQrBtn');
+
+        if (data.type === 'table') {
+            detailsDiv.innerHTML = `
+                <strong>Table ${data.table_number}</strong><br>
+                ID: ${data.table_id}
+            `;
+            confirmBtn.style.display = 'block';
+        } else {
+            detailsDiv.innerHTML = `Raw Data: ${data.raw_data}`;
+            confirmBtn.style.display = 'none';
+        }
+
+        resultDiv.style.display = 'block';
+    }
+
+    async function confirmQrScan() {
+        const qrData = document.getElementById('scannedQrData').value;
+        if (!qrData) {
+            toast('No QR code scanned', 'error');
+            return;
+        }
+
+        showLoading();
+        try {
+            const response = await fetch('{{ route("pos.scan.qr") }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ qr_data: qrData })
+            });
+
+            const result = await response.json();
+            hideLoading();
+
+            if (!result.success) {
+                toast(result.message || 'Failed to scan QR code', 'error');
+                return;
+            }
+
+            const table = result.table;
+            toast(`Table ${table.table_number} loaded successfully`, 'success');
+            closeQrScanner();
+
+            if (result.order && result.order.has_active_order) {
+                // Load existing order
+                await viewTableOrder(result.order.id);
+            } else {
+                // Start new order for this table
+                await startNewOrder(table.id);
+            }
+        } catch (error) {
+            hideLoading();
+            console.error('QR scan error:', error);
+            toast('Error processing QR code: ' + error.message, 'error');
+        }
+    }
 
     // ── Numeric-only guard for amount / quantity inputs ──
     document.addEventListener('DOMContentLoaded', function () {
