@@ -238,7 +238,7 @@
                 </select>
             </div>
             <!-- Categories -->
-            <div style="display:flex; flex-wrap:wrap; gap:8px; padding-bottom:2px;" id="categoriesContainer">
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:2px;" id="categoriesContainer">
                 <button class="cat-pill active" data-category="0" onclick="selectCategory(0, this)">All</button>
             </div>
         </div>
