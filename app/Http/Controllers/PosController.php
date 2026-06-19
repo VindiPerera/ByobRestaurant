@@ -34,6 +34,7 @@ class PosController extends Controller
         ]);
     }
 
+
     public function getTables()
     {
         $tables = RestaurantTable::with('activeOrder.items')->orderBy('table_number')->get()->map(function ($table) {
@@ -176,19 +177,16 @@ class PosController extends Controller
         // Find any existing item for this product in the order
         $existingItem = OrderItem::where('order_id', $order->id)
             ->where('product_id', $product->id)
-            ->where('kot_printed', false)
             ->first();
 
         if ($existingItem) {
-            // If item exists and hasn't been printed yet, increase the quantity
+            // If item exists, increase the quantity
             $existingItem->quantity += $validated['quantity'];
             $existingItem->subtotal = $existingItem->unit_price * $existingItem->quantity;
             $existingItem->save();
             $item = $existingItem;
         } else {
-            // Either new item or existing item that was already printed
-            // If item was already printed, create a new line item for the additional quantity
-            // Otherwise create the first line item
+            // Create first line item
             $item = OrderItem::create([
                 'order_id' => $order->id,
                 'product_id' => $product->id,
@@ -199,6 +197,7 @@ class PosController extends Controller
                 'kitchen_notes' => $validated['kitchen_notes'] ?? null,
                 'is_bar_item' => $validated['is_bar_item'] ?? false,
                 'kot_printed' => false,
+                'printed_qty' => 0,
             ]);
         }
 
@@ -238,8 +237,8 @@ class PosController extends Controller
     public function updateItem(Request $request, Order $order, OrderItem $item)
     {
         $validated = $request->validate([
-            'quantity'         => 'required|integer|min:1',
-            'kitchen_notes'    => 'nullable|string',
+            'quantity' => 'required|integer|min:1',
+            'kitchen_notes' => 'nullable|string',
             'discount_percent' => 'nullable|numeric|min:0|max:100',
         ]);
 
@@ -258,10 +257,10 @@ class PosController extends Controller
         $subtotal = $item->unit_price * $validated['quantity'] * (1 - $discountPercent / 100);
 
         $item->update([
-            'quantity'         => $validated['quantity'],
-            'subtotal'         => $subtotal,
+            'quantity' => $validated['quantity'],
+            'subtotal' => $subtotal,
             'discount_percent' => $discountPercent,
-            'kitchen_notes'    => $validated['kitchen_notes'] ?? $item->kitchen_notes,
+            'kitchen_notes' => $validated['kitchen_notes'] ?? $item->kitchen_notes,
         ]);
 
         $this->updateOrderTotals($order);
@@ -300,6 +299,7 @@ class PosController extends Controller
             'tax_amount' => 0,
             'total' => $total,
             'printed_at' => now(),
+            'kot_printed_at' => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         return response()->json([
@@ -325,13 +325,26 @@ class PosController extends Controller
     {
         $order->load('items');
 
-        // Get kitchen items (not bar items) that have NOT been printed yet
-        $unprintedItems = $order->items
+        // Get kitchen items (not bar items) that have quantity > printed_qty
+        $printableItems = $order->items
             ->where('is_bar_item', false)
-            ->where('kot_printed', false)
+            ->filter(function ($item) {
+                return $item->quantity > $item->printed_qty;
+            })
             ->values();
 
-        if ($unprintedItems->isEmpty()) {
+        if ($printableItems->isEmpty()) {
+            // If the order already has kitchen items printed but kot_printed_at is missing, fix it now
+            if (!$order->kot_printed_at && $order->items->where('is_bar_item', false)->count() > 0) {
+                $order->update(['kot_printed_at' => now()]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'KOT already printed, history record updated.',
+                    'order_number' => $order->order_number,
+                    'items' => []
+                ]);
+            }
+
             return response()->json([
                 'success' => false,
                 'message' => 'No new items to print. All items already sent to kitchen.',
@@ -339,39 +352,31 @@ class PosController extends Controller
             ], 422);
         }
 
-        // Get the IDs of unprinted items and mark them as printed
-        $unprintedItemIds = $unprintedItems->pluck('id')->toArray();
-        \DB::table('order_items')
-            ->whereIn('id', $unprintedItemIds)
-            ->update([
+        // Prepare items to print and update printed_qty
+        $itemsToPrint = [];
+        foreach ($printableItems as $item) {
+            $qtyToPrint = $item->quantity - $item->printed_qty;
+
+            $itemsToPrint[] = [
+                'product_name' => $item->product_name,
+                'quantity' => $qtyToPrint,
+                'kitchen_notes' => $item->kitchen_notes,
+            ];
+
+            // Mark as printed and update printed_qty
+            $item->update([
                 'kot_printed' => true,
-                'updated_at' => \Carbon\Carbon::now(),
+                'printed_qty' => $item->quantity,
+                'updated_at' => now(),
             ]);
+        }
+
+        $order->update(['kot_printed_at' => now()]);
 
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
-            'items' => $unprintedItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
-        ]);
-    }
-
-    public function printBot(Order $order)
-    {
-        $order->update(['bot_printed_at' => now()]);
-        $barItems = $order->items->where('is_bar_item', true)->values();
-
-        return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'items' => $barItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
+            'items' => $itemsToPrint,
         ]);
     }
 
@@ -434,12 +439,12 @@ class PosController extends Controller
             'tax_amount' => 0,
             'total' => (float) $total,
             'items' => $order->items->map(fn($item) => [
-                'product_name'    => $item->product_name,
-                'quantity'        => $item->quantity,
-                'unit_price'      => (float) $item->unit_price,
-                'subtotal'        => (float) $item->subtotal,
-                'discount_percent'=> (float) $item->discount_percent,
-                'kitchen_notes'   => $item->kitchen_notes,
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
+                'discount_percent' => (float) $item->discount_percent,
+                'kitchen_notes' => $item->kitchen_notes,
             ]),
         ]);
     }
@@ -478,8 +483,8 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'payment_method' => 'required|in:cash,card,bank_transfer,mixed',
-            'amount_paid'    => 'required|numeric|min:0',
-            'discount_type'  => 'nullable|in:percentage,fixed',
+            'amount_paid' => 'required|numeric|min:0',
+            'discount_type' => 'nullable|in:percentage,fixed',
             'discount_value' => 'nullable|numeric|min:0',
         ]);
 
@@ -493,20 +498,21 @@ class PosController extends Controller
             $discount = $validated['discount_value'];
         }
 
-        $total      = $subtotal - $discount;
+        $total = $subtotal - $discount;
         $amountPaid = $validated['amount_paid'];
-        $change     = max(0, $amountPaid - $total);
+        $change = max(0, $amountPaid - $total);
 
         $order->update([
-            'status'          => 'completed',
-            'subtotal'        => $subtotal,
+            'status' => 'completed',
+            'subtotal' => $subtotal,
             'discount_amount' => $discount,
-            'tax_amount'      => 0,
-            'total'           => $total,
-            'payment_method'  => $validated['payment_method'],
-            'amount_paid'     => $amountPaid,
-            'change_amount'   => $change,
-            'printed_at'      => now(),
+            'tax_amount' => 0,
+            'total' => $total,
+            'payment_method' => $validated['payment_method'],
+            'amount_paid' => $amountPaid,
+            'change_amount' => $change,
+            'printed_at' => now(),
+            'kot_printed_at' => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         // Record transaction in active shift
@@ -540,32 +546,32 @@ class PosController extends Controller
             $table = RestaurantTable::find($order->table_id);
             if ($table) {
                 $table->update([
-                    'status'      => 'available',
+                    'status' => 'available',
                     'occupied_at' => null,
                 ]);
             }
         }
 
         return response()->json([
-            'success'         => true,
-            'order_number'    => $order->order_number,
-            'table_number'    => $order->table?->table_number,
-            'table_name'      => $order->table?->name,
-            'customer_name'   => $order->customer_name,
-            'customer_phone'  => $order->customer_phone,
-            'subtotal'        => (float) $subtotal,
+            'success' => true,
+            'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number,
+            'table_name' => $order->table?->name,
+            'customer_name' => $order->customer_name,
+            'customer_phone' => $order->customer_phone,
+            'subtotal' => (float) $subtotal,
             'discount_amount' => (float) $discount,
-            'total'           => (float) $total,
-            'payment_method'  => $validated['payment_method'],
-            'amount_paid'     => (float) $amountPaid,
-            'change_amount'   => (float) $change,
-            'items'           => $order->items->map(fn($item) => [
-                'product_name'     => $item->product_name,
-                'quantity'         => $item->quantity,
-                'unit_price'       => (float) $item->unit_price,
-                'subtotal'         => (float) $item->subtotal,
+            'total' => (float) $total,
+            'payment_method' => $validated['payment_method'],
+            'amount_paid' => (float) $amountPaid,
+            'change_amount' => (float) $change,
+            'items' => $order->items->map(fn($item) => [
+                'product_name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'subtotal' => (float) $item->subtotal,
                 'discount_percent' => (float) $item->discount_percent,
-                'kitchen_notes'    => $item->kitchen_notes,
+                'kitchen_notes' => $item->kitchen_notes,
             ]),
         ]);
     }
@@ -637,14 +643,15 @@ class PosController extends Controller
     public function getKotHistory(Request $request)
     {
         $query = Order::with('items')
-            ->where('status', 'completed')
             ->whereNotNull('kot_printed_at')
             ->orderBy('kot_printed_at', 'desc');
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where('order_number', 'like', "%{$search}%")
-                ->orWhere('customer_name', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%");
+            });
         }
 
         $orders = $query->get();
@@ -702,8 +709,11 @@ class PosController extends Controller
         return response()->json([
             'success' => true,
             'order_number' => $order->order_number,
+            'table_number' => $order->table?->table_number ?? '—',
             'customer_name' => $order->customer_name,
             'order_type' => $order->order_type,
+            'date_time' => now()->format('M d, Y H:i'),
+            'is_reprint' => true,
             'items' => $kitchenItems->map(fn($item) => [
                 'product_name' => $item->product_name,
                 'quantity' => $item->quantity,
@@ -712,20 +722,314 @@ class PosController extends Controller
         ]);
     }
 
-    public function reprintBot(Order $order)
+    public function generateTableQrCode(RestaurantTable $table)
     {
-        $order->load('items');
-        $barItems = $order->items->where('is_bar_item', true)->values();
+        try {
+            $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
 
-        return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'customer_name' => $order->customer_name,
-            'items' => $barItems->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'kitchen_notes' => $item->kitchen_notes,
-            ]),
+            $renderer = new \BaconQrCode\Renderer\Image\Svg();
+            $renderer->setHeight(200);
+            $renderer->setWidth(200);
+
+            $qrCode = \BaconQrCode\Encoder\Encoder::encode(
+                $qrUrl,
+                \BaconQrCode\Common\ErrorCorrectionLevel::H,
+                \BaconQrCode\Encoding\Encoding::UTF_8
+            );
+
+            $image = $renderer->render($qrCode);
+
+            return response($image, 200)
+                ->header('Content-Type', 'image/svg+xml')
+                ->header('Content-Disposition', 'inline; filename="table-' . $table->table_number . '-qr.svg"');
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to generate QR code: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function scanTableQr(Request $request)
+    {
+        $validated = $request->validate([
+            'qr_data' => 'required|string',
         ]);
+
+        try {
+            $data = json_decode($validated['qr_data'], true);
+
+            if (!$data || $data['type'] !== 'table' || !isset($data['table_id'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid QR code format',
+                ], 422);
+            }
+
+            $table = RestaurantTable::find($data['table_id']);
+            if (!$table) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Table not found',
+                ], 404);
+            }
+
+            $activeOrder = $table->activeOrder;
+
+            return response()->json([
+                'success' => true,
+                'table' => [
+                    'id' => $table->id,
+                    'table_number' => $table->table_number,
+                    'name' => $table->name,
+                    'status' => $table->status,
+                    'section' => $table->section,
+                ],
+                'order' => $activeOrder ? [
+                    'id' => $activeOrder->id,
+                    'order_number' => $activeOrder->order_number,
+                    'status' => $activeOrder->status,
+                    'has_active_order' => true,
+                ] : null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error processing QR code: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getAllTableQrCodes()
+    {
+        try {
+            $tables = RestaurantTable::all();
+            $qrCodes = [];
+
+            foreach ($tables as $table) {
+                $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+                try {
+                    $renderer = new \BaconQrCode\Renderer\Image\Svg();
+                    $renderer->setHeight(200);
+                    $renderer->setWidth(200);
+
+                    $qrCode = \BaconQrCode\Encoder\Encoder::encode(
+                        $qrUrl,
+                        \BaconQrCode\Common\ErrorCorrectionLevel::H,
+                        \BaconQrCode\Encoding\Encoding::UTF_8
+                    );
+
+                    $image = $renderer->render($qrCode);
+
+                    $qrCodes[] = [
+                        'table_id' => $table->id,
+                        'table_number' => $table->table_number,
+                        'table_name' => $table->name,
+                        'qr_svg' => $image->__toString(),
+                    ];
+                } catch (\Exception $e) {
+                    \Log::error('QR code generation failed for table ' . $table->id . ': ' . $e->getMessage());
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'qr_codes' => $qrCodes,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to generate QR codes: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function tableQrCodesPrint()
+    {
+        $tables = RestaurantTable::orderBy('table_number')->get();
+        $qrCodes = [];
+
+        foreach ($tables as $table) {
+            $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+            try {
+                $renderer = new \BaconQrCode\Renderer\Image\Svg();
+                $renderer->setHeight(250);
+                $renderer->setWidth(250);
+
+                $qrCode = \BaconQrCode\Encoder\Encoder::encode(
+                    $qrUrl,
+                    \BaconQrCode\Common\ErrorCorrectionLevel::H,
+                    \BaconQrCode\Encoding\Encoding::UTF_8
+                );
+
+                $image = $renderer->render($qrCode);
+
+                $qrCodes[] = [
+                    'table_id' => $table->id,
+                    'table_number' => $table->table_number,
+                    'table_name' => $table->name,
+                    'section' => $table->section,
+                    'capacity' => $table->capacity,
+                    'qr_url' => $qrUrl,
+                    'qr_svg' => $image->__toString(),
+                ];
+            } catch (\Exception $e) {
+                \Log::error('QR code generation failed for table ' . $table->id . ': ' . $e->getMessage());
+            }
+        }
+
+        $modules = $this->currentUser()->role->modules()->get();
+        return view('modules.table-qr-codes', ['qrCodes' => $qrCodes, 'modules' => $modules]);
+    }
+
+    public function tableQrCodesSettings()
+    {
+        $tables = RestaurantTable::orderBy('table_number')->get();
+        $qrCodes = [];
+
+        foreach ($tables as $table) {
+            $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+            // Generate QR code using free API
+            $qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($qrUrl);
+
+            $qrCodes[] = [
+                'table_id' => $table->id,
+                'table_number' => $table->table_number,
+                'table_name' => $table->name,
+                'section' => $table->section,
+                'capacity' => $table->capacity,
+                'qr_url' => $qrUrl,
+                'qr_image_url' => $qrImageUrl,
+            ];
+        }
+
+        $modules = $this->currentUser()->role->modules()->get();
+        return view('modules.table-qr-settings', ['qrCodes' => $qrCodes, 'modules' => $modules]);
+    }
+
+    public function downloadTableQrCode($tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
+        $qrUrl = route('table.order.menu', ['tableId' => $table->id], true);
+
+        try {
+            // Use free QR API to generate PNG
+            $apiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=' . urlencode($qrUrl);
+            $qrImageData = file_get_contents($apiUrl);
+
+            return response($qrImageData)
+                ->header('Content-Type', 'image/png')
+                ->header('Content-Disposition', 'attachment; filename="table-' . $table->table_number . '-qr.png"');
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to generate QR code: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function tableQrMenu($tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
+        $categories = Category::where('status', 'active')->orderBy('sort_order')->get();
+        $products = Product::where('status', 'active')->get();
+
+        return view('qr-menu.table-order', [
+            'table' => $table,
+            'categories' => $categories,
+            'products' => $products,
+        ]);
+    }
+
+    public function submitTableOrder(Request $request, $tableId)
+    {
+        $table = RestaurantTable::findOrFail($tableId);
+
+        $validated = $request->validate([
+            'customer_name' => 'nullable|string|max:255',
+            'customer_phone' => 'nullable|string|max:20',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.kitchen_notes' => 'nullable|string',
+        ]);
+
+        try {
+            // Check if table already has an active order
+            $existingOrder = Order::where('table_id', $table->id)
+                ->whereIn('status', ['pending', 'confirmed', 'hold'])
+                ->latest()
+                ->first();
+
+            if ($existingOrder) {
+                // Add items to existing order
+                $order = $existingOrder;
+                $isExistingOrder = true;
+            } else {
+                // Create new order
+                $order = Order::create([
+                    'order_number' => 'ORD-' . Str::random(8),
+                    'table_id' => $table->id,
+                    'customer_name' => $validated['customer_name'],
+                    'customer_phone' => $validated['customer_phone'],
+                    'user_id' => auth()->check() ? auth()->id() : 1,
+                    'order_type' => 'dine_in',
+                    'status' => 'pending',
+                ]);
+                $isExistingOrder = false;
+            }
+
+            // Add items to order
+            foreach ($validated['items'] as $item) {
+                $product = Product::find($item['product_id']);
+                $itemSubtotal = $product->price * $item['quantity'];
+
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $item['product_id'],
+                    'product_name' => $product->name,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $product->price,
+                    'subtotal' => $itemSubtotal,
+                    'kitchen_notes' => $item['kitchen_notes'] ?? null,
+                ]);
+            }
+
+            // Update order totals
+            $allItems = $order->items()->get();
+            $totalSubtotal = $allItems->sum('subtotal');
+            $order->update([
+                'subtotal' => $totalSubtotal,
+                'total' => $totalSubtotal,
+            ]);
+
+            // Update customer info if provided and new order
+            if (!$isExistingOrder && $validated['customer_name']) {
+                $order->update([
+                    'customer_name' => $validated['customer_name'],
+                    'customer_phone' => $validated['customer_phone'],
+                ]);
+            }
+
+            // Ensure table is marked as occupied
+            if ($table->status !== 'occupied') {
+                $table->update([
+                    'status' => 'occupied',
+                    'occupied_at' => now(),
+                ]);
+            }
+
+            $message = $isExistingOrder
+                ? 'Items added to existing order! Your items have been sent to the kitchen.'
+                : 'Order placed successfully! Your order has been sent to the kitchen.';
+
+            return response()->json([
+                'success' => true,
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'table_number' => $table->table_number,
+                'is_new_order' => !$isExistingOrder,
+                'message' => $message,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error placing order: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

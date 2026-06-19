@@ -147,6 +147,143 @@
         </div>
     </div>
 
+    <!-- ── SALES REPORT SUMMARY ── -->
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
+
+        <!-- Header with Flatpickr date range filter -->
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div class="flex items-center justify-between flex-wrap gap-4 mb-0">
+                <h2 class="text-lg font-bold text-gray-900">
+                    <i class="fas fa-receipt text-red-500 mr-2"></i>Sales Report
+                    @if($from && $to)
+                        <span class="ml-2 text-sm font-normal text-gray-400">{{ $from->format('d M Y') }} — {{ $to->format('d M Y') }}</span>
+                    @else
+                        <span class="ml-2 text-sm font-normal text-gray-400">All time</span>
+                    @endif
+                </h2>
+                <form id="salesFilterForm" method="GET" action="{{ route('reports.sales') }}" class="flex items-center gap-2 flex-wrap">
+                    <div class="relative flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 shadow-sm">
+                        <i class="fas fa-calendar text-red-400 text-sm"></i>
+                        <input id="dateRangePicker" type="text" placeholder="Select date range..."
+                            class="text-sm text-gray-700 bg-transparent outline-none w-52 cursor-pointer"
+                            readonly>
+                        <input type="hidden" name="from" id="fromHidden" value="{{ $from ? $from->format('Y-m-d') : '' }}">
+                        <input type="hidden" name="to"   id="toHidden"   value="{{ $to   ? $to->format('Y-m-d')   : '' }}">
+                    </div>
+                    <button type="submit"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition shadow-sm">
+                        <i class="fas fa-filter text-xs"></i> Filter
+                    </button>
+                    @if($from && $to)
+                    <a href="{{ route('reports.index') }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-200 transition">
+                        <i class="fas fa-xmark text-xs"></i> Clear
+                    </a>
+                    <a href="{{ route('reports.export.sales.range', ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition shadow-sm">
+                        <i class="fas fa-download text-xs"></i> Print PDF
+                    </a>
+                    @endif
+                </form>
+            </div>
+        </div>
+
+        <!-- Summary stats bar -->
+        <div class="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
+            <div class="px-6 py-4">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{{ ($from && $to) ? 'Period Revenue' : 'Total Revenue' }}</p>
+                <p class="text-xl font-bold text-gray-900">LKR {{ number_format($rangeRevenue, 2) }}</p>
+            </div>
+            <div class="px-6 py-4">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Orders</p>
+                <p class="text-xl font-bold text-gray-900">{{ number_format($rangeCount) }}</p>
+            </div>
+            <div class="px-6 py-4">
+                <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Avg Order Value</p>
+                <p class="text-xl font-bold text-gray-900">LKR {{ number_format($rangeAvg, 2) }}</p>
+            </div>
+            <div class="px-6 py-4 flex flex-wrap items-center gap-2">
+                @foreach($rangePayments as $rp)
+                @php $rpc = ['cash'=>'bg-green-100 text-green-700','card'=>'bg-blue-100 text-blue-700','bank_transfer'=>'bg-purple-100 text-purple-700','mixed'=>'bg-orange-100 text-orange-700'][$rp->payment_method] ?? 'bg-gray-100 text-gray-600'; @endphp
+                <span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full {{ $rpc }}">
+                    {{ ucfirst(str_replace('_',' ',$rp->payment_method)) }}
+                    <span class="font-normal opacity-75">{{ $rp->order_count }}</span>
+                </span>
+                @endforeach
+            </div>
+        </div>
+
+        <!-- Sales table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Order #</th>
+                        <th class="px-4 py-3 text-left">Table</th>
+                        <th class="px-4 py-3 text-left">Customer</th>
+                        <th class="px-4 py-3 text-left">Type</th>
+                        <th class="px-4 py-3 text-center">Payment</th>
+                        <th class="px-4 py-3 text-right">Total</th>
+                        <th class="px-4 py-3 text-right">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($sales as $sale)
+                    @php
+                        $pc = ['cash'=>'bg-green-100 text-green-700','card'=>'bg-blue-100 text-blue-700','bank_transfer'=>'bg-purple-100 text-purple-700','mixed'=>'bg-orange-100 text-orange-700'][$sale->payment_method] ?? 'bg-gray-100 text-gray-600';
+                    @endphp
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 font-mono text-xs text-gray-700">{{ $sale->order_number }}</td>
+                        <td class="px-4 py-3 text-gray-600">
+                            {{ $sale->table?->name ?? ($sale->table?->table_number ? 'T'.$sale->table->table_number : '—') }}
+                        </td>
+                        <td class="px-4 py-3 text-gray-600">{{ $sale->customer_name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-500 capitalize text-xs">{{ str_replace('_',' ',$sale->order_type ?? '—') }}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {{ $pc }}">
+                                {{ ucfirst(str_replace('_',' ',$sale->payment_method ?? '—')) }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-semibold text-gray-900">LKR {{ number_format($sale->total, 2) }}</td>
+                        <td class="px-4 py-3 text-right text-gray-400 text-xs whitespace-nowrap">{{ $sale->created_at->format('d M Y, H:i') }}</td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="7" class="px-4 py-10 text-center text-gray-400">No completed sales found.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        @if($sales->hasPages())
+        <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
+            <p class="text-sm text-gray-500">
+                Showing {{ $sales->firstItem() }}–{{ $sales->lastItem() }} of {{ $sales->total() }} orders
+            </p>
+            <div class="flex items-center gap-1">
+                @if($sales->onFirstPage())
+                    <span class="px-3 py-1.5 text-sm text-gray-300 border border-gray-200 rounded-lg cursor-not-allowed">Prev</span>
+                @else
+                    <a href="{{ $sales->previousPageUrl() }}" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Prev</a>
+                @endif
+                @foreach($sales->getUrlRange(max(1,$sales->currentPage()-2), min($sales->lastPage(),$sales->currentPage()+2)) as $page => $url)
+                    @if($page == $sales->currentPage())
+                        <span class="px-3 py-1.5 text-sm font-semibold bg-red-600 text-white rounded-lg">{{ $page }}</span>
+                    @else
+                        <a href="{{ $url }}" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">{{ $page }}</a>
+                    @endif
+                @endforeach
+                @if($sales->hasMorePages())
+                    <a href="{{ $sales->nextPageUrl() }}" class="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition">Next</a>
+                @else
+                    <span class="px-3 py-1.5 text-sm text-gray-300 border border-gray-200 rounded-lg cursor-not-allowed">Next</span>
+                @endif
+            </div>
+        </div>
+        @endif
+
+    </div>
+
     <!-- ── REVENUE CHART (last 7 days) ── -->
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
         <h2 class="text-lg font-bold text-gray-900 mb-4">
@@ -306,7 +443,22 @@
 </div>
 @endsection
 
+@section('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+    .flatpickr-calendar { border-radius: 14px !important; box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important; border: 1px solid #e2e8f0 !important; }
+    .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange { background: #dc2626 !important; border-color: #dc2626 !important; }
+    .flatpickr-day.inRange { background: #fee2e2 !important; border-color: #fee2e2 !important; color: #dc2626 !important; }
+    .flatpickr-day:hover { background: #fef2f2 !important; border-color: #fca5a5 !important; }
+    .flatpickr-months .flatpickr-month { background: #dc2626 !important; color: #fff !important; border-radius: 14px 14px 0 0 !important; }
+    .flatpickr-current-month, .flatpickr-current-month select, .flatpickr-current-month .numInputWrapper { color: #fff !important; }
+    .flatpickr-weekday { color: #dc2626 !important; font-weight: 700 !important; }
+    .flatpickr-prev-month svg, .flatpickr-next-month svg { fill: #fff !important; }
+</style>
+@endsection
+
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function () {
@@ -353,6 +505,35 @@
             }
         }
     });
+})();
+
+// ── Flatpickr date range calendar ──
+(function () {
+    const fromHidden = document.getElementById('fromHidden');
+    const toHidden   = document.getElementById('toHidden');
+
+    const fp = flatpickr('#dateRangePicker', {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd M Y',
+        showMonths: 2,
+        disableMobile: true,
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                const fmt = d => d.toISOString().slice(0, 10);
+                fromHidden.value = fmt(selectedDates[0]);
+                toHidden.value   = fmt(selectedDates[1]);
+            }
+        }
+    });
+
+    // Pre-fill picker if filter is already active
+    const from = fromHidden.value;
+    const to   = toHidden.value;
+    if (from && to) {
+        fp.setDate([from, to]);
+    }
 })();
 </script>
 @endsection

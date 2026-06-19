@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -14,88 +15,146 @@ class ReportsController extends Controller
     public function index()
     {
         $modules = $this->currentUser()->role->modules()->get();
+        $data    = $this->buildSalesTableData(null, null);
 
-        // ── Summary cards ──────────────────────────────────────────
+        return view('modules.reports', array_merge($this->baseReportData(), compact('modules'), $data));
+    }
+
+    public function salesReport(Request $request)
+    {
+        $modules = $this->currentUser()->role->modules()->get();
+        $from    = $request->input('from');
+        $to      = $request->input('to');
+        $data    = $this->buildSalesTableData($from, $to);
+
+        return view('modules.reports', array_merge($this->baseReportData(), compact('modules'), $data));
+    }
+
+    private function buildSalesTableData(?string $fromStr, ?string $toStr): array
+    {
+        $from = $fromStr ? Carbon::parse($fromStr)->startOfDay() : null;
+        $to   = $toStr   ? Carbon::parse($toStr)->endOfDay()     : null;
+
+        $query = Order::where('status', 'completed')->with('table')->latest();
+        if ($from && $to) {
+            $query->whereBetween('created_at', [$from, $to]);
+        }
+
+        $allForRange  = (clone $query)->get();
+        $rangeRevenue = $allForRange->sum('total');
+        $rangeCount   = $allForRange->count();
+        $rangeAvg     = $rangeCount > 0 ? round($rangeRevenue / $rangeCount, 2) : 0;
+
+        $pmQuery = Order::where('status', 'completed')->whereNotNull('payment_method')
+                        ->select('payment_method',
+                                 DB::raw('COUNT(*) as order_count'),
+                                 DB::raw('SUM(total) as total_revenue'))
+                        ->groupBy('payment_method');
+        if ($from && $to) {
+            $pmQuery->whereBetween('created_at', [$from, $to]);
+        }
+        $rangePayments = $pmQuery->get();
+
+        $sales = (clone $query)->paginate(15)->withQueryString();
+
+        return compact('sales', 'rangeRevenue', 'rangeCount', 'rangeAvg', 'rangePayments', 'from', 'to');
+    }
+
+    public function exportSalesRangePdf(Request $request)
+    {
+        $from = $request->input('from') ? Carbon::parse($request->input('from'))->startOfDay() : Carbon::today()->startOfDay();
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'))->endOfDay()     : Carbon::today()->endOfDay();
+
+        $sales = Order::where('status', 'completed')
+                      ->whereBetween('created_at', [$from, $to])
+                      ->with('table')
+                      ->latest()
+                      ->get();
+
+        $rangeRevenue = $sales->sum('total');
+        $rangeCount   = $sales->count();
+        $rangeAvg     = $rangeCount > 0 ? round($rangeRevenue / $rangeCount, 2) : 0;
+
+        $rangePayments = Order::where('status', 'completed')
+                              ->whereBetween('created_at', [$from, $to])
+                              ->whereNotNull('payment_method')
+                              ->select('payment_method',
+                                       DB::raw('COUNT(*) as order_count'),
+                                       DB::raw('SUM(total) as total_revenue'))
+                              ->groupBy('payment_method')
+                              ->get();
+
+        $pdf = Pdf::loadView('reports.sales-range-pdf', [
+            'sales'         => $sales,
+            'rangeRevenue'  => $rangeRevenue,
+            'rangeCount'    => $rangeCount,
+            'rangeAvg'      => $rangeAvg,
+            'rangePayments' => $rangePayments,
+            'from'          => $from,
+            'to'            => $to,
+            'generatedAt'   => now()->format('d M Y, H:i'),
+        ])->setPaper('a4', 'landscape');
+
+        return $pdf->download('sales-report-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.pdf');
+    }
+
+    private function baseReportData(): array
+    {
         $totalRevenue  = Order::where('status', 'completed')->sum('total');
-        $todaySales    = Order::where('status', 'completed')
-                              ->whereDate('created_at', Carbon::today())->sum('total');
+        $todaySales    = Order::where('status', 'completed')->whereDate('created_at', Carbon::today())->sum('total');
         $monthRevenue  = Order::where('status', 'completed')
-                              ->whereYear('created_at',  Carbon::now()->year)
+                              ->whereYear('created_at', Carbon::now()->year)
                               ->whereMonth('created_at', Carbon::now()->month)->sum('total');
         $totalOrders   = Order::where('status', 'completed')->count();
         $avgOrderValue = $totalOrders > 0 ? round($totalRevenue / $totalOrders, 2) : 0;
 
-        // Top selling product (by quantity sold)
         $topProductRow = OrderItem::select('product_name', DB::raw('SUM(quantity) as total_qty'))
-                                  ->groupBy('product_name')
-                                  ->orderByDesc('total_qty')
-                                  ->first();
+                                  ->groupBy('product_name')->orderByDesc('total_qty')->first();
         $topProduct = $topProductRow?->product_name ?? 'N/A';
 
-        // ── Revenue last 7 days (for Chart.js) ──────────────────────
         $last7Days = collect(range(6, 0))->map(function ($daysAgo) {
             $date = Carbon::today()->subDays($daysAgo);
-            $revenue = Order::where('status', 'completed')
-                            ->whereDate('created_at', $date)
-                            ->sum('total');
             return [
-                'label'   => $date->format('D d'),   // e.g. "Mon 26"
-                'revenue' => (float) $revenue,
+                'label'   => $date->format('D d'),
+                'revenue' => (float) Order::where('status', 'completed')->whereDate('created_at', $date)->sum('total'),
             ];
         });
-        $chartLabels  = $last7Days->pluck('label')->toJson();
-        $chartData    = $last7Days->pluck('revenue')->toJson();
+        $chartLabels = $last7Days->pluck('label')->toJson();
+        $chartData   = $last7Days->pluck('revenue')->toJson();
 
-        // ── Pending sales (unsettled / on-hold orders) ─────────────
         $pendingSales = Order::whereIn('status', ['pending', 'hold', 'confirmed'])
+                             ->whereHas('items')
                              ->with(['table', 'items'])
                              ->latest()
                              ->get();
         $pendingCount = $pendingSales->count();
         $pendingTotal = $pendingSales->sum('total');
 
-        // ── Recent sales table (last 20 completed orders) ───────────
-        $recentSales = Order::where('status', 'completed')
-                            ->with('table')
-                            ->latest()
-                            ->limit(20)
-                            ->get();
+        $recentSales = Order::where('status', 'completed')->with('table')->latest()->limit(20)->get();
 
-        // ── Top products table ──────────────────────────────────────
         $topProducts = OrderItem::select(
                            'product_name',
                            DB::raw('SUM(quantity) as total_qty'),
                            DB::raw('SUM(subtotal) as total_revenue'),
                            DB::raw('MAX(product_id) as product_id')
-                       )
-                       ->groupBy('product_name')
-                       ->orderByDesc('total_qty')
-                       ->limit(10)
-                       ->get()
+                       )->groupBy('product_name')->orderByDesc('total_qty')->limit(10)->get()
                        ->map(function ($row) {
-                           // Attach category name if product still exists
                            $product = Product::with('category')->find($row->product_id);
                            $row->category_name = $product?->category?->name ?? '—';
                            return $row;
                        });
 
-        // ── Payment method breakdown ────────────────────────────────
-        $paymentBreakdown = Order::where('status', 'completed')
-                                 ->whereNotNull('payment_method')
+        $paymentBreakdown = Order::where('status', 'completed')->whereNotNull('payment_method')
                                  ->select('payment_method',
                                           DB::raw('COUNT(*) as order_count'),
                                           DB::raw('SUM(total) as total_revenue'))
-                                 ->groupBy('payment_method')
-                                 ->get();
+                                 ->groupBy('payment_method')->get();
 
-        return view('modules.reports', compact(
-            'modules',
-            'totalRevenue', 'todaySales', 'monthRevenue',
-            'totalOrders', 'avgOrderValue', 'topProduct',
-            'chartLabels', 'chartData',
-            'recentSales', 'topProducts', 'paymentBreakdown',
+        return compact(
+            'totalRevenue', 'todaySales', 'monthRevenue', 'totalOrders', 'avgOrderValue', 'topProduct',
+            'chartLabels', 'chartData', 'recentSales', 'topProducts', 'paymentBreakdown',
             'pendingSales', 'pendingCount', 'pendingTotal'
-        ));
+        );
     }
 
     public function exportSalesPdf()

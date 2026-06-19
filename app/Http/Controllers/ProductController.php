@@ -11,9 +11,16 @@ use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'supplierRecord'])->paginate(10);
+        $query = Product::with(['category', 'supplierRecord']);
+
+        if ($request->has('search') && $request->search) {
+            $search = $request->search;
+            $query->where('name', 'like', '%' . $search . '%');
+        }
+
+        $products = $query->paginate(10);
         $modules = $this->currentUser()->role->modules()->get();
         $lowStockCount = Product::where('is_unlimited_stock', false)
             ->whereNotNull('low_stock_threshold')
@@ -23,6 +30,7 @@ class ProductController extends Controller
             'products' => $products,
             'modules' => $modules,
             'lowStockCount' => $lowStockCount,
+            'searchQuery' => $request->search ?? '',
         ]);
     }
 
