@@ -126,6 +126,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/sales', [ReportsController::class, 'salesReport'])->name('reports.sales');
     Route::get('/reports/export/sales-pdf', [ReportsController::class, 'exportSalesPdf'])->name('reports.export.sales');
     Route::get('/reports/export/sales-range-pdf', [ReportsController::class, 'exportSalesRangePdf'])->name('reports.export.sales.range');
+    Route::get('/reports/payment-breakdown', [ReportsController::class, 'paymentBreakdownJson'])->name('reports.payment.breakdown');
     Route::get('/reports/export/products-pdf', [ReportsController::class, 'exportProductsPdf'])->name('reports.export.products');
     Route::get('/reports/export/combined-pdf', [ReportsController::class, 'exportCombinedPdf'])->name('reports.export.combined');
 

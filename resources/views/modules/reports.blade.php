@@ -357,11 +357,25 @@
         <!-- Payment Methods Breakdown (1/3) -->
         <div class="xl:col-span-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100">
-                <h2 class="text-lg font-bold text-gray-900">
+                <h2 class="text-lg font-bold text-gray-900 mb-3">
                     <i class="fas fa-credit-card text-red-500 mr-2"></i>Payment Methods
                 </h2>
+                <!-- Date range filter -->
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5">
+                        <i class="fas fa-calendar text-red-400 text-xs"></i>
+                        <input id="pmDatePicker" type="text" placeholder="All time"
+                            class="text-xs text-gray-600 bg-transparent outline-none w-full cursor-pointer"
+                            readonly>
+                    </div>
+                    <button id="pmClearBtn" onclick="clearPmFilter()"
+                        class="hidden px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+                <p id="pmDateLabel" class="text-xs text-gray-400 mt-1.5 hidden"></p>
             </div>
-            <div class="p-6 space-y-4">
+            <div id="pmBreakdownBody" class="p-6 space-y-4">
                 @forelse($paymentBreakdown as $pm)
                 @php
                     $pmIcons = [
@@ -507,7 +521,7 @@
     });
 })();
 
-// ── Flatpickr date range calendar ──
+// ── Flatpickr — Sales Report date range ──
 (function () {
     const fromHidden = document.getElementById('fromHidden');
     const toHidden   = document.getElementById('toHidden');
@@ -528,12 +542,96 @@
         }
     });
 
-    // Pre-fill picker if filter is already active
     const from = fromHidden.value;
     const to   = toHidden.value;
-    if (from && to) {
-        fp.setDate([from, to]);
+    if (from && to) fp.setDate([from, to]);
+})();
+
+// ── Flatpickr — Payment Methods date range ──
+(function () {
+    const pmIcons = {
+        cash:          'fa-money-bill-wave text-green-500',
+        card:          'fa-credit-card text-blue-500',
+        bank_transfer: 'fa-university text-purple-500',
+        mixed:         'fa-shuffle text-orange-500',
+    };
+
+    const endpoint = '{{ route("reports.payment.breakdown") }}';
+    let activeDates = { from: null, to: null };
+
+    function fmtDate(d) { return d.toISOString().slice(0, 10); }
+
+    function renderBreakdown(data) {
+        const body = document.getElementById('pmBreakdownBody');
+        const label = document.getElementById('pmDateLabel');
+
+        if (!data.breakdown.length) {
+            body.innerHTML = '<p class="text-center text-gray-400 py-6">No payment data for this range.</p>';
+            return;
+        }
+
+        body.innerHTML = data.breakdown.map(pm => {
+            const icon = pmIcons[pm.method] || 'fa-circle-question text-gray-400';
+            return `<div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <i class="fas ${icon}"></i>${pm.label}
+                    </span>
+                    <span class="text-sm font-bold text-gray-900">${pm.order_count} orders</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 bg-gray-100 rounded-full h-2">
+                        <div class="bg-red-500 h-2 rounded-full transition-all" style="width:${pm.pct}%"></div>
+                    </div>
+                    <span class="text-xs text-gray-400 w-10 text-right">${pm.pct}%</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">LKR ${parseFloat(pm.total_revenue).toLocaleString('en-US', {minimumFractionDigits:2})}</p>
+            </div>`;
+        }).join('');
+
+        if (activeDates.from && activeDates.to) {
+            label.textContent = `${data.total_count} orders · LKR ${parseFloat(data.total_revenue).toLocaleString('en-US', {minimumFractionDigits:2})}`;
+            label.classList.remove('hidden');
+        } else {
+            label.classList.add('hidden');
+        }
     }
+
+    async function loadBreakdown(from, to) {
+        const url = new URL(endpoint);
+        if (from) url.searchParams.set('from', from);
+        if (to)   url.searchParams.set('to', to);
+        try {
+            const res  = await fetch(url);
+            const data = await res.json();
+            renderBreakdown(data);
+        } catch(e) { console.error('Payment breakdown error', e); }
+    }
+
+    window.clearPmFilter = function () {
+        activeDates = { from: null, to: null };
+        pmFp.clear();
+        document.getElementById('pmClearBtn').classList.add('hidden');
+        document.getElementById('pmDateLabel').classList.add('hidden');
+        loadBreakdown(null, null);
+    };
+
+    const pmFp = flatpickr('#pmDatePicker', {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd M Y',
+        showMonths: 1,
+        disableMobile: true,
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                activeDates.from = fmtDate(selectedDates[0]);
+                activeDates.to   = fmtDate(selectedDates[1]);
+                document.getElementById('pmClearBtn').classList.remove('hidden');
+                loadBreakdown(activeDates.from, activeDates.to);
+            }
+        }
+    });
 })();
 </script>
 @endsection

@@ -12,6 +12,37 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportsController extends Controller
 {
+    public function paymentBreakdownJson(Request $request)
+    {
+        $from = $request->input('from') ? Carbon::parse($request->input('from'))->startOfDay() : null;
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'))->endOfDay()     : null;
+
+        $query = Order::where('status', 'completed')->whereNotNull('payment_method')
+                      ->select('payment_method',
+                               DB::raw('COUNT(*) as order_count'),
+                               DB::raw('SUM(total) as total_revenue'))
+                      ->groupBy('payment_method');
+
+        if ($from && $to) {
+            $query->whereBetween('created_at', [$from, $to]);
+        }
+
+        $breakdown  = $query->get();
+        $totalCount = $breakdown->sum('order_count');
+
+        return response()->json([
+            'breakdown'   => $breakdown->map(fn($pm) => [
+                'method'        => $pm->payment_method,
+                'label'         => ucfirst(str_replace('_', ' ', $pm->payment_method)),
+                'order_count'   => $pm->order_count,
+                'total_revenue' => $pm->total_revenue,
+                'pct'           => $totalCount > 0 ? round(($pm->order_count / $totalCount) * 100) : 0,
+            ]),
+            'total_count'   => $totalCount,
+            'total_revenue' => $breakdown->sum('total_revenue'),
+        ]);
+    }
+
     public function index()
     {
         $modules = $this->currentUser()->role->modules()->get();
