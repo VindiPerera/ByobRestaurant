@@ -321,36 +321,47 @@
         </div>
 
         <!-- Zone 4: Fixed bottom controls -->
-        <div style="border-top:1px solid #e2e8f0; padding:12px 16px; background:#fff; flex-shrink:0; display:flex; flex-direction:column; gap:8px;">
+        <div style="border-top:1px solid #e2e8f0; padding:10px 16px; background:#fff; flex-shrink:0; display:flex; flex-direction:column; gap:6px;">
 
-            <!-- Totals -->
-            <div style="font-size:12px; display:flex; flex-direction:column; gap:4px;">
-                <div style="display:flex; justify-content:space-between; color:#64748b; font-size:11px;">
-                    <span>Subtotal</span>
-                    <span id="subtotalDisplay" style="font-weight:600; color:#374151;">Rs. 0.00</span>
+            <!-- Totals + Payment summary — single 4-column row -->
+            <div style="display:grid; grid-template-columns: 1fr 1.25fr 1fr 1.1fr; gap:8px; align-items:start;">
+                <!-- Subtotal -->
+                <div>
+                    <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#94a3b8; margin-bottom:2px;">Subtotal</div>
+                    <div id="subtotalDisplay" style="font-size:12px; font-weight:600; color:#374151;">Rs. 0.00</div>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
-                    <span style="color:#64748b;">Discount</span>
+                <!-- Discount -->
+                <div>
+                    <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#94a3b8; margin-bottom:2px;">Discount</div>
                     <div style="display:flex; gap:4px;">
                         <select id="discountType" onchange="recalcTotal()"
-                                style="font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 6px; background:#f8fafc; outline:none; cursor:pointer;">
+                                style="flex:1; min-width:0; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 4px; background:#f8fafc; outline:none; cursor:pointer;">
                             <option value="">None</option>
                             <option value="percentage">%</option>
                             <option value="fixed">Rs</option>
                         </select>
                         <input type="number" id="discountValue" placeholder="0" min="0" oninput="recalcTotal()"
-                               style="width:50px; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 6px; outline:none; background:#f8fafc;">
+                               style="width:42px; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 4px; outline:none; background:#f8fafc;">
                     </div>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding-top:4px; border-top:2px solid #f1f5f9; font-weight:700; font-size:14px; color:#dc2626;">
-                    <span>Total</span>
-                    <span id="totalDisplay">Rs. 0.00</span>
+                <!-- Total -->
+                <div>
+                    <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#dc2626; margin-bottom:2px;">Total</div>
+                    <div id="totalDisplay" style="font-size:14px; font-weight:800; color:#dc2626;">Rs. 0.00</div>
                 </div>
+                <!-- Payment toggle (hidden until items exist) -->
+                <button type="button" id="paymentToggle" onclick="togglePaymentSection()" style="display:none; flex-direction:column; align-items:flex-start; gap:2px; background:none; border:none; padding:0; cursor:pointer; text-align:left;">
+                    <span style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#94a3b8;">Payment</span>
+                    <span style="font-size:12px; font-weight:700; color:#dc2626; display:flex; align-items:center; gap:4px;">
+                        <span id="paymentMethodSummary">Cash</span>
+                        <i class="fas fa-chevron-down" id="paymentChevron" style="font-size:9px; color:#64748b; transition:transform 0.15s;"></i>
+                    </span>
+                </button>
             </div>
 
-            <!-- Payment method (hidden until items exist) -->
-            <div id="paymentSection" style="display:none; padding:8px 0; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
-                <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:#64748b; margin-bottom:6px;">Method</div>
+            <!-- Payment details (collapsible, hidden until items exist) -->
+            <div id="paymentSection" style="display:none;">
+                <div id="paymentBody" style="display:none; padding-top:8px; margin-top:2px; border-top:1px solid #e2e8f0;">
                 <div style="display:flex; gap:5px; margin-bottom:8px;">
                     <button class="pay-method-btn active" data-method="cash" onclick="selectPaymentMethod('cash')" style="flex:1; padding:6px 4px; font-size:10px;">
                         <i class="fas fa-money-bill-wave" style="display:block; font-size:13px; margin-bottom:2px;"></i>Cash
@@ -417,6 +428,7 @@
                         <div style="font-size:8px; color:#64748b; margin-bottom:2px;">Total Paid</div>
                         <div id="splitTotalDisplay" style="font-size:12px; font-weight:700; color:#16a34a;">Rs. 0.00</div>
                     </div>
+                </div>
                 </div>
             </div>
 
@@ -1458,9 +1470,24 @@
     }
 
     function setBottomControls(hasItems) {
+        document.getElementById('paymentToggle').style.display      = hasItems ? 'flex' : 'none';
         document.getElementById('paymentSection').style.display     = hasItems ? 'block' : 'none';
         document.getElementById('waiterPayRow').style.display       = hasItems ? 'flex' : 'none';
         document.getElementById('holdBtn').style.display            = hasItems ? 'block' : 'none';
+        if (!hasItems) setPaymentExpanded(false);
+    }
+
+    function setPaymentExpanded(expanded) {
+        const body    = document.getElementById('paymentBody');
+        const chevron = document.getElementById('paymentChevron');
+        if (!body) return;
+        body.style.display = expanded ? 'block' : 'none';
+        if (chevron) chevron.style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    function togglePaymentSection() {
+        const body = document.getElementById('paymentBody');
+        setPaymentExpanded(body.style.display === 'none');
     }
 
     function toggleCustomerInfo() {
@@ -1511,6 +1538,9 @@
         document.getElementById('splitSection').style.display = method === 'split' ? 'block' : 'none';
         if (method !== 'cash') document.getElementById('changeDisplay').textContent = 'Rs. 0.00';
         if (method === 'split') updateSplitTotal();
+        const _payLabels  = { cash: 'Cash', card: 'Card', bank_transfer: 'Bank', split: 'Split' };
+        const _paySummary = document.getElementById('paymentMethodSummary');
+        if (_paySummary) _paySummary.textContent = (_payLabels[method] || method);
     }
 
     function updateSplitTotal() {
@@ -1552,6 +1582,9 @@
         if (!currentOrder || !currentOrder.id || !currentOrder.items || !currentOrder.items.length) {
             toast('No items in order', 'error'); return;
         }
+
+        // Reveal payment details so the cashier can confirm method / cash amount
+        setPaymentExpanded(true);
 
         // Cash requires an explicit amount entered
         if (selectedPaymentMethod === 'cash') {
@@ -1984,9 +2017,13 @@
         document.getElementById('customerInfoToggle').style.display     = 'none';
         document.getElementById('customerInfoSection').style.display    = 'none';
         document.getElementById('activeOrderBanner').style.display      = 'none';
+        document.getElementById('paymentToggle').style.display          = 'none';
         document.getElementById('paymentSection').style.display         = 'none';
         document.getElementById('waiterPayRow').style.display           = 'none';
         document.getElementById('holdBtn').style.display                = 'none';
+        setPaymentExpanded(false);
+        const _paySummary = document.getElementById('paymentMethodSummary');
+        if (_paySummary) _paySummary.textContent = 'Cash';
         const _confirmLiveBtn = document.getElementById('confirmLiveBillBtn');
         if (_confirmLiveBtn) _confirmLiveBtn.style.display = 'none';
         document.getElementById('customerName').value   = '';

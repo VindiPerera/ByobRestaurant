@@ -1,4 +1,4 @@
-<nav class="navbar fixed top-0 left-0 right-0 z-50">
+<nav class="navbar fixed top-0 left-0 right-0 z-50 pb-2">
     <div class="page-header-bar"></div>
     <div class="navbar-inner">
         <!-- Logo -->
