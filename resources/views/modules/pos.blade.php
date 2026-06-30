@@ -1727,8 +1727,7 @@
             + '<div style="text-align:center; font-size:11px; margin-top:8px; color:#000; border-top:1px dashed #000; padding-top:6px;">Thank you for dining with us!<br>We look forward to seeing you again.<br>Powered By JAAN Network (PVT) Ltd</div>';
 
         currentBillContent = html;
-        document.getElementById('billContent').innerHTML = html;
-        openModal('finalBillModal');
+        printReceipt(html);
         resetOrder();
     }
 
@@ -1834,11 +1833,8 @@
             return;
         }
 
-        document.getElementById('kotOrderNumber').textContent = 'Order #' + data.order_number;
-        document.getElementById('kotTableNumber').textContent = 'Table ' + (currentTable ? currentTable.table_number : '—');
-        renderKotItems(data.items);
-        currentKotContent = buildKotHtml(data, currentTable ? currentTable.table_number : '—');
-        openModal('kotModal');
+        const tableNum = currentTable ? currentTable.table_number : '—';
+        printReceipt(buildKotHtml(data, tableNum));
     }
 
     async function printKotForTable(orderId) {
