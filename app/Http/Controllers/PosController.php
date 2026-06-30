@@ -393,6 +393,49 @@ class PosController extends Controller
         ]));
     }
 
+    public function getQrOrderNotifications()
+    {
+        $orders = Order::where('source', 'qr')
+            ->whereIn('status', ['pending', 'confirmed', 'hold'])
+            ->with('table', 'items')
+            ->latest()
+            ->limit(30)
+            ->get();
+
+        return response()->json([
+            'unseen_count' => $orders->whereNull('seen_at')->count(),
+            'orders' => $orders->map(fn($order) => [
+                'id' => $order->id,
+                'order_number' => $order->order_number,
+                'table_number' => $order->table?->table_number,
+                'table_name' => $order->table?->name,
+                'customer_name' => $order->customer_name,
+                'items_count' => $order->items->count(),
+                'items_summary' => $order->items->map(fn($i) => $i->quantity . '× ' . $i->product_name)->implode(', '),
+                'total' => (float) $order->total,
+                'seen' => ! is_null($order->seen_at),
+                'created_at' => $order->created_at->toIso8601String(),
+                'created_at_human' => $order->created_at->diffForHumans(),
+            ]),
+        ]);
+    }
+
+    public function markQrOrderSeen(Order $order)
+    {
+        if ($order->source === 'qr' && is_null($order->seen_at)) {
+            $order->update(['seen_at' => now()]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function markAllQrOrdersSeen()
+    {
+        Order::where('source', 'qr')->whereNull('seen_at')->update(['seen_at' => now()]);
+
+        return response()->json(['success' => true]);
+    }
+
     private function updateOrderTotals(Order $order)
     {
         $subtotal = $order->items->sum('subtotal');
@@ -968,6 +1011,7 @@ class PosController extends Controller
                     'customer_phone' => $validated['customer_phone'],
                     'user_id' => auth()->check() ? auth()->id() : 1,
                     'order_type' => 'dine_in',
+                    'source' => 'qr',
                     'status' => 'pending',
                 ]);
                 $isExistingOrder = false;
@@ -996,6 +1040,12 @@ class PosController extends Controller
                 'subtotal' => $totalSubtotal,
                 'total' => $totalSubtotal,
             ]);
+
+            // New items were just added via the QR menu — surface this order
+            // in the notification bell again, even if it was already seen.
+            if ($isExistingOrder && $order->source === 'qr' && $order->seen_at !== null) {
+                $order->update(['seen_at' => null]);
+            }
 
             // Update customer info if provided and new order
             if (!$isExistingOrder && $validated['customer_name']) {

@@ -101,6 +101,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/pos/held-orders', [PosController::class, 'getHeldOrders'])->name('pos.held');
     Route::post('/pos/order/{order}/pay', [PosController::class, 'payOrder'])->name('pos.order.pay');
 
+    // QR order notifications
+    Route::get('/pos/qr-orders/notifications', [PosController::class, 'getQrOrderNotifications'])->name('pos.qr_orders.notifications');
+    Route::post('/pos/qr-orders/{order}/seen', [PosController::class, 'markQrOrderSeen'])->name('pos.qr_orders.seen');
+    Route::post('/pos/qr-orders/seen-all', [PosController::class, 'markAllQrOrdersSeen'])->name('pos.qr_orders.seen_all');
+
     // QR Code routes
     Route::get('/pos/table/{table}/qr-code', [PosController::class, 'generateTableQrCode'])->name('pos.table.qr');
     Route::post('/pos/scan-qr', [PosController::class, 'scanTableQr'])->name('pos.scan.qr');

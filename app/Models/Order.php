@@ -14,6 +14,8 @@ class Order extends Model
         'customer_phone',
         'user_id',
         'order_type',
+        'source',
+        'seen_at',
         'status',
         'subtotal',
         'discount_amount',
@@ -43,6 +45,7 @@ class Order extends Model
         'bot_printed_at' => 'datetime',
         'waiter_bill_printed_at' => 'datetime',
         'printed_at' => 'datetime',
+        'seen_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
