@@ -16,6 +16,7 @@
         .stat-card.discounts { @apply border-orange-500; }
         .stat-card.tax { @apply border-green-500; }
     </style>
+    @include('layouts.dark-mode')
 </head>
 <body class="bg-gray-50">
     @include('layouts.navbar')

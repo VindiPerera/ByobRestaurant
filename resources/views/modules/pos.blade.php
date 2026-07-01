@@ -165,7 +165,73 @@
             #printArea { display: block !important; }
         }
         #printArea { display: none; }
+
+        /* ══════════════════════════════════════════
+           DARK MODE — blue / black / white theme
+        ══════════════════════════════════════════ */
+        html.dark-mode body { background: #0a0e17; }
+        html.dark-mode .tables-panel,
+        html.dark-mode .bill-panel { background: #10162a; border-color: #1f2942; }
+        html.dark-mode .menu-panel { background: #0d1220; }
+
+        html.dark-mode .table-card { background: #10162a; border-color: #1f2942; }
+        html.dark-mode .table-card.available { background: linear-gradient(135deg,#0c1c14,#0f2318); border-color: #16a34a; }
+        html.dark-mode .table-card.occupied  { background: linear-gradient(135deg,#1c1010,#241212); border-color: #ef4444; }
+        html.dark-mode .table-card.reserved  { background: linear-gradient(135deg,#20180a,#291d0c); border-color: #f59e0b; }
+        html.dark-mode .table-card.cleaning  { background: #131a2e; border-color: #26314d; }
+        html.dark-mode .table-card.selected  { border-color: #2f5bff; box-shadow: 0 0 0 3px rgba(47,91,255,0.25); }
+
+        html.dark-mode .cat-pill { background: #10162a; border-color: #26314d; color: #9aa7c2; }
+        html.dark-mode .cat-pill:hover { border-color: #2f5bff; color: #6d94ff; }
+        html.dark-mode .cat-pill.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+
+        html.dark-mode .product-card { background: #10162a; border-color: #1f2942; }
+        html.dark-mode .product-card:hover { border-color: #2f5bff; box-shadow: 0 4px 16px rgba(47,91,255,0.2); }
+
+        html.dark-mode .bill-item { border-bottom-color: #1f2942; }
+        html.dark-mode .qty-btn { background: #141b30; border-color: #26314d; color: #e8ecf4; }
+        html.dark-mode .qty-btn:hover { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+
+        html.dark-mode .pay-method-btn { background: #10162a; border-color: #26314d; color: #9aa7c2; }
+        html.dark-mode .pay-method-btn:hover { border-color: #2f5bff; color: #6d94ff; }
+        html.dark-mode .pay-method-btn.active { background: #101f45; border-color: #1d4ed8; color: #6d94ff; }
+
+        html.dark-mode .modal-box { background: #10162a; color: #e8ecf4; }
+        html.dark-mode .btn-secondary { background: #182036; color: #e8ecf4; }
+        html.dark-mode .btn-secondary:hover { background: #212b47; }
+
+        html.dark-mode input, html.dark-mode select, html.dark-mode textarea {
+            background: #101627 !important; border-color: #26314d !important; color: #e8ecf4 !important;
+        }
+        html.dark-mode #searchInput { background: #101627; }
+
+        html.dark-mode h2, html.dark-mode h3 { color: #f1f5f9 !important; }
+        html.dark-mode #selectedTableLabel,
+        html.dark-mode #tableStatusBadge { color: #9aa7c2 !important; }
+
+        html.dark-mode #customerInfoSection,
+        html.dark-mode [style*="background:#f8fafc"] { background: #0d1324 !important; }
+        html.dark-mode [style*="background: #f8fafc"] { background: #0d1324 !important; }
+        html.dark-mode [style*="background:#fafafa"] { background: #0a0e17 !important; }
+        html.dark-mode [style*="background:#fff;"] { background: #10162a !important; }
+        html.dark-mode [style*="background: #fff;"] { background: #10162a !important; }
+        html.dark-mode [style*="border-top:1px solid #e2e8f0"] { border-top-color: #1f2942 !important; }
+        html.dark-mode [style*="border-bottom:1px solid #e2e8f0"] { border-bottom-color: #1f2942 !important; }
+        html.dark-mode [style*="color:#0f172a"] { color: #f1f5f9 !important; }
+        html.dark-mode [style*="color:#374151"] { color: #e8ecf4 !important; }
+        html.dark-mode [style*="color: #374151"] { color: #e8ecf4 !important; }
+        html.dark-mode [style*="color:#64748b"] { color: #9aa7c2 !important; }
+        html.dark-mode [style*="color: #64748b"] { color: #9aa7c2 !important; }
+
+        html.dark-mode .btn-primary,
+        html.dark-mode .btn-blue { background: #1d4ed8; }
+        html.dark-mode .btn-primary:hover,
+        html.dark-mode .btn-blue:hover { background: #1e3a8a; }
+
+        html.dark-mode ::-webkit-scrollbar-thumb { background: #26314d; }
+
     </style>
+    @include('layouts.dark-mode')
 </head>
 <body>
 

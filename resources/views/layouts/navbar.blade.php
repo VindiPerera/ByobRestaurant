@@ -47,6 +47,11 @@
                 @endif
             </a>
 
+            <!-- Dark mode toggle -->
+            <button type="button" class="dm-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
+                <i class="fas fa-moon" id="dmToggleIcon"></i>
+            </button>
+
             <div class="nav-divider hidden sm:block"></div>
 
             <!-- User pill + dropdown -->

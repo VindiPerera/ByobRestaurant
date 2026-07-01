@@ -26,6 +26,7 @@
         .main-content { margin-left: 256px; }
         @media (max-width: 1024px) { .main-content { margin-left: 0; } }
     </style>
+    @include('layouts.dark-mode')
     @yield('styles')
 </head>
 <body>

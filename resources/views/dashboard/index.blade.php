@@ -61,7 +61,28 @@
             background: linear-gradient(135deg, #1e293b, #0f172a);
             color: #fff; border: 1px solid rgba(255,255,255,0.1);
         }
+
+        /* Dark mode overrides specific to this page */
+        html.dark-mode body { background: #0a0e17; }
+        html.dark-mode .stat-card { background: #10162a; border-color: #1f2942; }
+        html.dark-mode .module-icon { background: rgba(255,255,255,0.08); color: #e8ecf4; }
+        html.dark-mode .module-card:nth-child(1)  { background: #241414; }
+        html.dark-mode .module-card:nth-child(2)  { background: #101f3d; }
+        html.dark-mode .module-card:nth-child(3)  { background: #10261c; }
+        html.dark-mode .module-card:nth-child(4)  { background: #2a2410; }
+        html.dark-mode .module-card:nth-child(5)  { background: #201035; }
+        html.dark-mode .module-card:nth-child(6)  { background: #0f2a26; }
+        html.dark-mode .module-card:nth-child(7)  { background: #2a1c10; }
+        html.dark-mode .module-card:nth-child(8)  { background: #2a1020; }
+        html.dark-mode .module-card:nth-child(9)  { background: #181c3d; }
+        html.dark-mode .module-card:nth-child(10) { background: #1c2410; }
+        html.dark-mode .module-card:nth-child(11) { background: #2a1414; }
+        html.dark-mode .module-card:nth-child(12) { background: #101f3d; }
+        html.dark-mode .module-card h3,
+        html.dark-mode .module-card p { color: #e8ecf4 !important; }
+        html.dark-mode a.module-card[style*="background"] { background: #10162a !important; }
     </style>
+    @include('layouts.dark-mode')
 </head>
 <body>
 

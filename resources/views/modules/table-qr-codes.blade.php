@@ -127,6 +127,7 @@
 
         .btn-secondary:hover { background: #e2e8f0; }
     </style>
+    @include('layouts.dark-mode')
 </head>
 <body>
 
