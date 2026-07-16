@@ -389,8 +389,8 @@
         <!-- Zone 4: Fixed bottom controls -->
         <div style="border-top:1px solid #e2e8f0; padding:10px 16px; background:#fff; flex-shrink:0; display:flex; flex-direction:column; gap:6px;">
 
-            <!-- Totals + Payment summary — single 4-column row -->
-            <div style="display:grid; grid-template-columns: 1fr 1.25fr 1fr 1.1fr; gap:8px; align-items:start;">
+            <!-- Totals + Payment summary — single 5-column row -->
+            <div style="display:grid; grid-template-columns: 0.9fr 1.15fr 1.15fr 1fr 1.1fr; gap:8px; align-items:start;">
                 <!-- Subtotal -->
                 <div>
                     <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#94a3b8; margin-bottom:2px;">Subtotal</div>
@@ -407,6 +407,20 @@
                             <option value="fixed">Rs</option>
                         </select>
                         <input type="number" id="discountValue" placeholder="0" min="0" oninput="recalcTotal()"
+                               style="width:42px; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 4px; outline:none; background:#f8fafc;">
+                    </div>
+                </div>
+                <!-- Service Charge -->
+                <div>
+                    <div style="font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:#94a3b8; margin-bottom:2px;">Service Chg</div>
+                    <div style="display:flex; gap:4px;">
+                        <select id="serviceChargeType" onchange="recalcTotal()"
+                                style="flex:1; min-width:0; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 4px; background:#f8fafc; outline:none; cursor:pointer;">
+                            <option value="">None</option>
+                            <option value="percentage">%</option>
+                            <option value="fixed">Rs</option>
+                        </select>
+                        <input type="number" id="serviceChargeValue" placeholder="0" min="0" oninput="recalcTotal()"
                                style="width:42px; font-size:10px; border:1px solid #e2e8f0; border-radius:5px; padding:3px 4px; outline:none; background:#f8fafc;">
                     </div>
                 </div>
@@ -1515,9 +1529,10 @@
         }
 
         // Totals
-        const subtotal = currentOrder.subtotal || 0;
-        const discount = calcDiscount(subtotal);
-        const total    = Math.max(0, subtotal - discount);
+        const subtotal      = currentOrder.subtotal || 0;
+        const discount      = calcDiscount(subtotal);
+        const serviceCharge = calcServiceCharge(subtotal);
+        const total    = Math.max(0, subtotal - discount + serviceCharge);
 
         document.getElementById('subtotalDisplay').textContent = 'Rs. ' + subtotal.toFixed(2);
         document.getElementById('totalDisplay').textContent    = 'Rs. ' + total.toFixed(2);
@@ -1624,19 +1639,29 @@
         return 0;
     }
 
+    function calcServiceCharge(subtotal) {
+        const type  = document.getElementById('serviceChargeType').value;
+        const value = parseFloat(document.getElementById('serviceChargeValue').value) || 0;
+        if (type === 'percentage') return (subtotal * value) / 100;
+        if (type === 'fixed')      return value;
+        return 0;
+    }
+
     function recalcTotal() {
         if (!currentOrder) return;
-        const subtotal = currentOrder.subtotal || 0;
-        const discount = calcDiscount(subtotal);
-        document.getElementById('totalDisplay').textContent = 'Rs. ' + Math.max(0, subtotal - discount).toFixed(2);
+        const subtotal      = currentOrder.subtotal || 0;
+        const discount      = calcDiscount(subtotal);
+        const serviceCharge = calcServiceCharge(subtotal);
+        document.getElementById('totalDisplay').textContent = 'Rs. ' + Math.max(0, subtotal - discount + serviceCharge).toFixed(2);
         updateChange();
     }
 
     function updateChange() {
         if (selectedPaymentMethod !== 'cash') return;
-        const subtotal = currentOrder ? (currentOrder.subtotal || 0) : 0;
-        const discount = calcDiscount(subtotal);
-        const total    = Math.max(0, subtotal - discount);
+        const subtotal      = currentOrder ? (currentOrder.subtotal || 0) : 0;
+        const discount      = calcDiscount(subtotal);
+        const serviceCharge = calcServiceCharge(subtotal);
+        const total    = Math.max(0, subtotal - discount + serviceCharge);
         const paid     = parseFloat(document.getElementById('amountPaid').value) || 0;
         const change   = Math.max(0, paid - total);
         const el       = document.getElementById('changeDisplay');
@@ -1668,7 +1693,8 @@
             const amount2 = parseFloat(document.getElementById('splitAmount2').value) || 0;
             const subtotal = currentOrder.subtotal || 0;
             const discountVal = calcDiscount(subtotal);
-            const total = Math.max(0, subtotal - discountVal);
+            const serviceChargeVal = calcServiceCharge(subtotal);
+            const total = Math.max(0, subtotal - discountVal + serviceChargeVal);
             const splitTotal = amount1 + amount2;
 
             if (amount1 <= 0 || splitTotal === 0) {
@@ -1683,15 +1709,18 @@
 
         await saveCustomerInfo();
 
-        const subtotal    = currentOrder.subtotal || 0;
-        const discountVal = calcDiscount(subtotal);
-        const total       = Math.max(0, subtotal - discountVal);
+        const subtotal         = currentOrder.subtotal || 0;
+        const discountVal      = calcDiscount(subtotal);
+        const serviceChargeVal = calcServiceCharge(subtotal);
+        const total            = Math.max(0, subtotal - discountVal + serviceChargeVal);
         let amountPaid    = total;
         let paymentData   = {
             payment_method: selectedPaymentMethod,
             amount_paid:    amountPaid,
             discount_type:  document.getElementById('discountType').value || null,
             discount_value: parseFloat(document.getElementById('discountValue').value) || 0,
+            service_charge_type:  document.getElementById('serviceChargeType').value || null,
+            service_charge_value: parseFloat(document.getElementById('serviceChargeValue').value) || 0,
         };
 
         if (selectedPaymentMethod === 'cash') {
@@ -1779,7 +1808,8 @@
             // ── SUMMARY ──
             + '<table width="100%" cellspacing="0" cellpadding="2" style="font-size:12px; color:#000; border-top:1px dashed #000; margin-top:4px; width:100%; table-layout:fixed;">'
             + '<tr><td style="width:65%;">Subtotal</td><td style="text-align:right; width:35%;">Rs.' + d.subtotal.toFixed(2) + '</td></tr>'
-            + (d.discount_amount > 0 ? '<tr><td>Discount</td><td style="text-align:right;">-Rs.' + d.discount_amount.toFixed(2) + '</td></tr>' : '')
+            + (d.discount_amount > 0 ? '<tr><td>Discount</td><td style="text-align:right; color:#b91c1c;">-Rs.' + d.discount_amount.toFixed(2) + '</td></tr>' : '')
+            + (d.service_charge_amount > 0 ? '<tr><td>Service Charge</td><td style="text-align:right;">+Rs.' + d.service_charge_amount.toFixed(2) + '</td></tr>' : '')
             + '<tr style="border-top:1px solid #000; font-size:14px;"><td style="padding-top:4px;">TOTAL</td><td style="text-align:right; padding-top:4px;">Rs.' + d.total.toFixed(2) + '</td></tr>'
             + '</table>'
 
@@ -2092,6 +2122,8 @@
         document.getElementById('customerPhone').value  = '';
         document.getElementById('discountType').value   = '';
         document.getElementById('discountValue').value  = '';
+        document.getElementById('serviceChargeType').value  = '';
+        document.getElementById('serviceChargeValue').value = '';
         document.getElementById('amountPaid').value     = '';
         document.getElementById('changeDisplay').textContent  = 'Rs. 0.00';
         document.getElementById('subtotalDisplay').textContent = 'Rs. 0.00';
@@ -2159,6 +2191,8 @@
         });
         document.getElementById('discountValue').addEventListener('input', recalcTotal);
         document.getElementById('discountType').addEventListener('change', recalcTotal);
+        document.getElementById('serviceChargeValue').addEventListener('input', recalcTotal);
+        document.getElementById('serviceChargeType').addEventListener('change', recalcTotal);
 
         // Block letters/alphabets on all number inputs (including dynamically created ones)
         var ALLOWED_KEYS = [8,9,13,27,46,35,36,37,38,39,40]; // backspace,tab,enter,esc,del,home,end,arrows

@@ -279,10 +279,13 @@ class PosController extends Controller
         $validated = $request->validate([
             'discount_type' => 'nullable|in:percentage,fixed',
             'discount_value' => 'nullable|numeric|min:0',
+            'service_charge_type' => 'nullable|in:percentage,fixed',
+            'service_charge_value' => 'nullable|numeric|min:0',
         ]);
 
         $subtotal = $order->items->sum('subtotal');
         $discount = 0;
+        $serviceCharge = 0;
 
         if ($validated['discount_type'] === 'percentage') {
             $discount = ($subtotal * $validated['discount_value']) / 100;
@@ -290,12 +293,19 @@ class PosController extends Controller
             $discount = $validated['discount_value'];
         }
 
-        $total = $subtotal - $discount;
+        if (($validated['service_charge_type'] ?? null) === 'percentage') {
+            $serviceCharge = ($subtotal * $validated['service_charge_value']) / 100;
+        } elseif (($validated['service_charge_type'] ?? null) === 'fixed') {
+            $serviceCharge = $validated['service_charge_value'];
+        }
+
+        $total = $subtotal - $discount + $serviceCharge;
 
         $order->update([
             'status' => 'completed',
             'subtotal' => $subtotal,
             'discount_amount' => $discount,
+            'service_charge_amount' => $serviceCharge,
             'tax_amount' => 0,
             'total' => $total,
             'printed_at' => now(),
@@ -310,6 +320,7 @@ class PosController extends Controller
             'customer_phone' => $order->customer_phone,
             'subtotal' => (float) $subtotal,
             'discount_amount' => (float) $discount,
+            'service_charge_amount' => (float) $serviceCharge,
             'total' => (float) $total,
             'items' => $order->items->map(fn($item) => [
                 'product_name' => $item->product_name,
@@ -529,11 +540,14 @@ class PosController extends Controller
             'amount_paid' => 'required|numeric|min:0',
             'discount_type' => 'nullable|in:percentage,fixed',
             'discount_value' => 'nullable|numeric|min:0',
+            'service_charge_type' => 'nullable|in:percentage,fixed',
+            'service_charge_value' => 'nullable|numeric|min:0',
         ]);
 
         $order->load('items', 'table');
         $subtotal = $order->items->sum('subtotal');
         $discount = 0;
+        $serviceCharge = 0;
 
         if (($validated['discount_type'] ?? null) === 'percentage') {
             $discount = ($subtotal * $validated['discount_value']) / 100;
@@ -541,7 +555,13 @@ class PosController extends Controller
             $discount = $validated['discount_value'];
         }
 
-        $total = $subtotal - $discount;
+        if (($validated['service_charge_type'] ?? null) === 'percentage') {
+            $serviceCharge = ($subtotal * $validated['service_charge_value']) / 100;
+        } elseif (($validated['service_charge_type'] ?? null) === 'fixed') {
+            $serviceCharge = $validated['service_charge_value'];
+        }
+
+        $total = $subtotal - $discount + $serviceCharge;
         $amountPaid = $validated['amount_paid'];
         $change = max(0, $amountPaid - $total);
 
@@ -549,6 +569,7 @@ class PosController extends Controller
             'status' => 'completed',
             'subtotal' => $subtotal,
             'discount_amount' => $discount,
+            'service_charge_amount' => $serviceCharge,
             'tax_amount' => 0,
             'total' => $total,
             'payment_method' => $validated['payment_method'],
@@ -604,6 +625,7 @@ class PosController extends Controller
             'customer_phone' => $order->customer_phone,
             'subtotal' => (float) $subtotal,
             'discount_amount' => (float) $discount,
+            'service_charge_amount' => (float) $serviceCharge,
             'total' => (float) $total,
             'payment_method' => $validated['payment_method'],
             'amount_paid' => (float) $amountPaid,
@@ -669,6 +691,7 @@ class PosController extends Controller
             'customer_phone' => $order->customer_phone,
             'subtotal' => (float) $order->subtotal,
             'discount_amount' => (float) $order->discount_amount,
+            'service_charge_amount' => (float) $order->service_charge_amount,
             'total' => (float) $order->total,
             'payment_method' => $order->payment_method,
             'items_count' => $order->items->count(),
@@ -727,6 +750,7 @@ class PosController extends Controller
             'customer_phone' => $order->customer_phone,
             'subtotal' => (float) $order->subtotal,
             'discount_amount' => (float) $order->discount_amount,
+            'service_charge_amount' => (float) $order->service_charge_amount,
             'tax_amount' => (float) $order->tax_amount,
             'total' => (float) $order->total,
             'payment_method' => $order->payment_method,
