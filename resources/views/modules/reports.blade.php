@@ -412,11 +412,26 @@
 
     <!-- ── TOP PRODUCTS TABLE ── -->
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 class="text-lg font-bold text-gray-900">
-                <i class="fas fa-trophy text-amber-400 mr-2"></i>Top Selling Products
-            </h2>
-            <span class="text-xs text-gray-400">By quantity sold</span>
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">
+                    <i class="fas fa-trophy text-amber-400 mr-2"></i>Top Selling Products
+                </h2>
+                <span class="text-xs text-gray-400">By quantity sold</span>
+            </div>
+            <!-- Date range filter -->
+            <div class="flex items-center gap-2">
+                <div class="relative flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5">
+                    <i class="fas fa-calendar text-red-400 text-xs"></i>
+                    <input id="tpDatePicker" type="text" placeholder="All time"
+                        class="text-xs text-gray-600 bg-transparent outline-none w-40 cursor-pointer"
+                        readonly>
+                </div>
+                <button id="tpClearBtn" onclick="clearTpFilter()"
+                    class="hidden px-2 py-1.5 text-xs text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -429,7 +444,7 @@
                         <th class="px-6 py-3 text-right">Total Revenue</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody id="topProductsBody" class="divide-y divide-gray-100">
                     @forelse($topProducts as $i => $prod)
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="px-6 py-3 text-gray-400 font-semibold">
@@ -629,6 +644,79 @@
                 activeDates.to   = fmtDate(selectedDates[1]);
                 document.getElementById('pmClearBtn').classList.remove('hidden');
                 loadBreakdown(activeDates.from, activeDates.to);
+            }
+        }
+    });
+})();
+
+// ── Flatpickr — Top Selling Products date range ──
+(function () {
+    const endpoint = '{{ route("reports.top_products") }}';
+
+    function fmtDate(d) { return d.toISOString().slice(0, 10); }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str ?? '';
+        return div.innerHTML;
+    }
+
+    function medalIcon(i) {
+        if (i === 0) return '<i class="fas fa-medal text-amber-400"></i>';
+        if (i === 1) return '<i class="fas fa-medal text-gray-400"></i>';
+        if (i === 2) return '<i class="fas fa-medal text-orange-400"></i>';
+        return i + 1;
+    }
+
+    function renderTopProducts(data) {
+        const body = document.getElementById('topProductsBody');
+
+        if (!data.products.length) {
+            body.innerHTML = '<tr><td colspan="5" class="px-6 py-10 text-center text-gray-400">No sales data for this range.</td></tr>';
+            return;
+        }
+
+        body.innerHTML = data.products.map((prod, i) => `
+            <tr class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-3 text-gray-400 font-semibold">${medalIcon(i)}</td>
+                <td class="px-6 py-3 font-semibold text-gray-900">${escapeHtml(prod.product_name)}</td>
+                <td class="px-6 py-3 text-gray-500">${escapeHtml(prod.category_name)}</td>
+                <td class="px-6 py-3 text-right font-bold text-gray-900">${prod.total_qty.toLocaleString('en-US')}</td>
+                <td class="px-6 py-3 text-right font-semibold text-gray-900">LKR ${parseFloat(prod.total_revenue).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadTopProducts(from, to) {
+        const url = new URL(endpoint);
+        if (from) url.searchParams.set('from', from);
+        if (to)   url.searchParams.set('to', to);
+        try {
+            const res  = await fetch(url);
+            const data = await res.json();
+            renderTopProducts(data);
+        } catch(e) { console.error('Top products error', e); }
+    }
+
+    window.clearTpFilter = function () {
+        tpFp.clear();
+        document.getElementById('tpClearBtn').classList.add('hidden');
+        loadTopProducts(null, null);
+    };
+
+    const tpFp = flatpickr('#tpDatePicker', {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd M Y',
+        showMonths: 1,
+        disableMobile: true,
+        onChange: function (selectedDates) {
+            if (selectedDates.length === 2) {
+                const from = fmtDate(selectedDates[0]);
+                const to   = fmtDate(selectedDates[1]);
+                document.getElementById('tpClearBtn').classList.remove('hidden');
+                loadTopProducts(from, to);
             }
         }
     });

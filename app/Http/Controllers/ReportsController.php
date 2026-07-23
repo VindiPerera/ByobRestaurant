@@ -43,6 +43,39 @@ class ReportsController extends Controller
         ]);
     }
 
+    public function topProductsJson(Request $request)
+    {
+        $from = $request->input('from') ? Carbon::parse($request->input('from'))->startOfDay() : null;
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'))->endOfDay()     : null;
+
+        $query = OrderItem::select(
+                     'product_name',
+                     DB::raw('SUM(order_items.quantity) as total_qty'),
+                     DB::raw('SUM(order_items.subtotal) as total_revenue'),
+                     DB::raw('MAX(order_items.product_id) as product_id')
+                 )
+                 ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                 ->where('orders.status', 'completed')
+                 ->groupBy('product_name');
+
+        if ($from && $to) {
+            $query->whereBetween('orders.created_at', [$from, $to]);
+        }
+
+        $topProducts = $query->orderByDesc('total_qty')->limit(10)->get()
+                              ->map(function ($row) {
+                                  $product = Product::with('category')->find($row->product_id);
+                                  return [
+                                      'product_name'   => $row->product_name,
+                                      'category_name'  => $product?->category?->name ?? '—',
+                                      'total_qty'      => (int) $row->total_qty,
+                                      'total_revenue'  => (float) $row->total_revenue,
+                                  ];
+                              });
+
+        return response()->json(['products' => $topProducts]);
+    }
+
     public function index()
     {
         $modules = $this->currentUser()->role->modules()->get();
