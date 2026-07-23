@@ -14,8 +14,8 @@ class ReportsController extends Controller
 {
     public function paymentBreakdownJson(Request $request)
     {
-        $from = $request->input('from') ? Carbon::parse($request->input('from'))->startOfDay() : null;
-        $to   = $request->input('to')   ? Carbon::parse($request->input('to'))->endOfDay()     : null;
+        $from = $request->input('from') ? Carbon::parse($request->input('from'), config('app.timezone'))->startOfDay() : null;
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'), config('app.timezone'))->endOfDay()     : null;
 
         $query = Order::where('status', 'completed')->whereNotNull('payment_method')
                       ->select('payment_method',
@@ -45,8 +45,8 @@ class ReportsController extends Controller
 
     public function topProductsJson(Request $request)
     {
-        $from = $request->input('from') ? Carbon::parse($request->input('from'))->startOfDay() : null;
-        $to   = $request->input('to')   ? Carbon::parse($request->input('to'))->endOfDay()     : null;
+        $from = $request->input('from') ? Carbon::parse($request->input('from'), config('app.timezone'))->startOfDay() : null;
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'), config('app.timezone'))->endOfDay()     : null;
 
         $query = OrderItem::select(
                      'product_name',
@@ -96,8 +96,8 @@ class ReportsController extends Controller
 
     private function buildSalesTableData(?string $fromStr, ?string $toStr): array
     {
-        $from = $fromStr ? Carbon::parse($fromStr)->startOfDay() : null;
-        $to   = $toStr   ? Carbon::parse($toStr)->endOfDay()     : null;
+        $from = $fromStr ? Carbon::parse($fromStr, config('app.timezone'))->startOfDay() : null;
+        $to   = $toStr   ? Carbon::parse($toStr, config('app.timezone'))->endOfDay()     : null;
 
         $query = Order::where('status', 'completed')->with('table')->latest();
         if ($from && $to) {
@@ -126,8 +126,8 @@ class ReportsController extends Controller
 
     public function exportSalesRangePdf(Request $request)
     {
-        $from = $request->input('from') ? Carbon::parse($request->input('from'))->startOfDay() : Carbon::today()->startOfDay();
-        $to   = $request->input('to')   ? Carbon::parse($request->input('to'))->endOfDay()     : Carbon::today()->endOfDay();
+        $from = $request->input('from') ? Carbon::parse($request->input('from'), config('app.timezone'))->startOfDay() : Carbon::today()->startOfDay();
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'), config('app.timezone'))->endOfDay()     : Carbon::today()->endOfDay();
 
         $sales = Order::where('status', 'completed')
                       ->whereBetween('created_at', [$from, $to])
