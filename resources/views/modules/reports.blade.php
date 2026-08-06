@@ -188,6 +188,10 @@
                         class="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-800 text-white text-sm font-semibold rounded-xl hover:bg-gray-900 transition shadow-sm">
                         <i class="fas fa-print text-xs"></i> Print Receipt
                     </button>
+                    <button type="button" id="printCategorySalesBtn" onclick="printCategorySales()"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-teal-700 text-white text-sm font-semibold rounded-xl hover:bg-teal-800 transition shadow-sm">
+                        <i class="fas fa-tags text-xs"></i> Category Sales
+                    </button>
                 </form>
             </div>
         </div>
@@ -651,6 +655,77 @@ function printSalesReceipt() {
         + '</table>'
 
         + '<div style="text-align:center; font-size:11px; margin-top:8px; border-top:1px dashed #000; padding-top:6px;">Printed: ' + new Date().toLocaleString() + '</div>';
+
+    printReceiptReport(html);
+}
+
+// ── Category-wise Sales receipt (80mm) ──
+async function printCategorySales() {
+    const from = document.getElementById('fromHidden')?.value || '';
+    const to   = document.getElementById('toHidden')?.value   || '';
+
+    const url = new URL('{{ route("reports.category_sales") }}');
+    if (from) url.searchParams.set('from', from);
+    if (to)   url.searchParams.set('to', to);
+
+    let d;
+    try {
+        const res = await fetch(url);
+        d = await res.json();
+    } catch (e) {
+        alert('Could not load category sales.');
+        return;
+    }
+
+    if (!d.categories.length) {
+        alert('No sales to print for the current filter.');
+        return;
+    }
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB');
+    const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+    const sections = d.categories.map(function(cat) {
+        const itemRows = cat.items.map(function(item) {
+            return '<tr>'
+                + '<td style="padding:1px 0; vertical-align:top;">' + escapeHtmlReport(item.product_name) + '</td>'
+                + '<td style="text-align:center; padding:1px 0; vertical-align:top; width:15%;">' + item.qty + '</td>'
+                + '<td style="text-align:right; padding:1px 0; vertical-align:top; width:25%;">' + item.amount.toFixed(2) + '</td>'
+                + '</tr>';
+        }).join('');
+
+        return '<div style="margin-top:10px;">'
+            + '<div style="font-size:12px;">' + escapeHtmlReport(cat.category.toUpperCase()) + '</div>'
+            + '<div style="border-top:1px dashed #000; margin:3px 0;"></div>'
+            + '<table width="100%" cellspacing="0" cellpadding="0" style="font-size:11px; table-layout:fixed;">'
+            + '<tbody>' + itemRows + '</tbody>'
+            + '</table>'
+            + '<div style="border-top:1px dashed #000; margin-top:3px;"></div>'
+            + '</div>';
+    }).join('');
+
+    const html =
+        '<div style="padding-bottom:4px;">'
+        + '<div style="font-size:14px;">Item Category wise Sales</div>'
+        + '<div style="font-size:11px; margin-top:4px;">Report Date : ' + dateStr + '</div>'
+        + '<div style="font-size:11px;">Report Time : ' + timeStr + '</div>'
+        + '</div>'
+        + '<div style="border-top:1px dashed #000; margin:4px 0;"></div>'
+
+        + '<table width="100%" cellspacing="0" cellpadding="0" style="font-size:11px; table-layout:fixed;">'
+        + '<thead><tr>'
+        + '<th style="text-align:left; padding-bottom:2px;">Description</th>'
+        + '<th style="text-align:center; padding-bottom:2px; width:15%;">Qty</th>'
+        + '<th style="text-align:right; padding-bottom:2px; width:25%;">Amount</th>'
+        + '</tr></thead>'
+        + '</table>'
+        + '<div style="border-top:1px dashed #000; margin:2px 0;"></div>'
+
+        + sections
+
+        + '<div style="text-align:right; font-size:12px; margin-top:6px;">GRAND TOTAL &nbsp; ' + d.grand_total.toFixed(2) + '</div>'
+        + '<div style="text-align:center; font-size:11px; margin-top:8px; border-top:1px dashed #000; padding-top:6px;">Printed: ' + now.toLocaleString() + '</div>';
 
     printReceiptReport(html);
 }

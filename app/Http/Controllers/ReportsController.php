@@ -76,6 +76,59 @@ class ReportsController extends Controller
         return response()->json(['products' => $topProducts]);
     }
 
+    public function categorySalesJson(Request $request)
+    {
+        $from = $request->input('from') ? Carbon::parse($request->input('from'), config('app.timezone'))->startOfDay() : null;
+        $to   = $request->input('to')   ? Carbon::parse($request->input('to'), config('app.timezone'))->endOfDay()     : null;
+
+        $query = OrderItem::select(
+                     'product_name',
+                     DB::raw('SUM(order_items.quantity) as total_qty'),
+                     DB::raw('SUM(order_items.subtotal) as total_revenue'),
+                     DB::raw('MAX(order_items.product_id) as product_id')
+                 )
+                 ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                 ->where('orders.status', 'completed')
+                 ->groupBy('product_name');
+
+        if ($from && $to) {
+            $query->whereBetween('orders.created_at', [$from, $to]);
+        }
+
+        $rows = $query->get();
+
+        $productIds = $rows->pluck('product_id')->filter()->unique();
+        $categoryByProductId = Product::with('category')
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id')
+            ->map(fn($p) => $p->category?->name ?? 'Uncategorized');
+
+        $categories = $rows->groupBy(function ($row) use ($categoryByProductId) {
+                          return $categoryByProductId->get($row->product_id) ?? 'Uncategorized';
+                      })
+                      ->map(function ($items, $categoryName) {
+                          return [
+                              'category' => $categoryName,
+                              'items' => $items->map(fn($row) => [
+                                  'product_name' => $row->product_name,
+                                  'qty'          => (int) $row->total_qty,
+                                  'amount'       => (float) $row->total_revenue,
+                              ])->values(),
+                              'total' => (float) $items->sum('total_revenue'),
+                          ];
+                      })
+                      ->sortBy('category')
+                      ->values();
+
+        return response()->json([
+            'from'       => $from?->format('d/m/Y'),
+            'to'         => $to?->format('d/m/Y'),
+            'categories' => $categories,
+            'grand_total' => (float) $rows->sum('total_revenue'),
+        ]);
+    }
+
     public function index()
     {
         $modules = $this->currentUser()->role->modules()->get();
