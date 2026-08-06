@@ -184,6 +184,10 @@
                         <i class="fas fa-download text-xs"></i> Print PDF
                     </a>
                     @endif
+                    <button type="button" id="printSalesReceiptBtn" onclick="printSalesReceipt()"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-800 text-white text-sm font-semibold rounded-xl hover:bg-gray-900 transition shadow-sm">
+                        <i class="fas fa-print text-xs"></i> Print Receipt
+                    </button>
                 </form>
             </div>
         </div>
@@ -253,6 +257,24 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Data island for the thermal receipt printer (current page of results shown above) -->
+        <script type="application/json" id="salesReceiptData">
+            {!! json_encode([
+                'from'    => $from ? $from->format('d M Y') : null,
+                'to'      => $to   ? $to->format('d M Y')   : null,
+                'revenue' => (float) $rangeRevenue,
+                'count'   => (int) $rangeCount,
+                'avg'     => (float) $rangeAvg,
+                'sales'   => $sales->map(fn($sale) => [
+                    'order_number' => $sale->order_number,
+                    'table'        => $sale->table?->name ?? ($sale->table?->table_number ? 'T'.$sale->table->table_number : '-'),
+                    'payment'      => ucfirst(str_replace('_', ' ', $sale->payment_method ?? '-')),
+                    'total'        => (float) $sale->total,
+                    'date'         => $sale->created_at->format('d M, H:i'),
+                ])->values(),
+            ], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
+        </script>
 
         <!-- Pagination -->
         @if($sales->hasPages())
@@ -561,6 +583,77 @@
     const to   = toHidden.value;
     if (from && to) fp.setDate([from, to]);
 })();
+
+// ── Sales Report — thermal receipt printer (80mm) ──
+function escapeHtmlReport(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+}
+
+function printReceiptReport(html) {
+    const w = window.open('', '', 'width=400,height=700,toolbar=0,menubar=0,scrollbars=1');
+    w.document.write(
+        '<!DOCTYPE html><html><head><style>'
+        + '@page { size: 80mm auto; margin: 2mm 6mm; }'
+        + '* { box-sizing: border-box; font-weight: bold !important; }'
+        + 'body { font-family: \'Courier New\', monospace; width: 100%; margin: 0; padding: 0; font-size: 12px; }'
+        + 'table { width: 100%; border-collapse: collapse; table-layout: fixed; }'
+        + 'td, th { word-break: break-word; overflow-wrap: break-word; }'
+        + '</style></head><body>' + html + '</body></html>'
+    );
+    w.document.close();
+    w.focus();
+    w.print();
+    setTimeout(function() { w.close(); }, 1200);
+}
+
+function printSalesReceipt() {
+    const raw = document.getElementById('salesReceiptData');
+    if (!raw) { return; }
+    const d = JSON.parse(raw.textContent);
+
+    if (!d.sales.length) {
+        alert('No sales to print for the current filter.');
+        return;
+    }
+
+    const rangeLabel = (d.from && d.to) ? (d.from + ' - ' + d.to) : 'All time';
+
+    const rows = d.sales.map(function(s) {
+        return '<tr>'
+            + '<td style="padding:3px 0; vertical-align:top; width:34%;">' + escapeHtmlReport(s.order_number)
+            + '<br><span style="font-size:10px;">' + escapeHtmlReport(s.table) + ' &middot; ' + escapeHtmlReport(s.payment) + '</span></td>'
+            + '<td style="text-align:right; padding:3px 0; vertical-align:top; width:30%;">Rs.' + s.total.toFixed(2) + '</td>'
+            + '<td style="text-align:right; padding:3px 0; vertical-align:top; width:36%; font-size:10px;">' + escapeHtmlReport(s.date) + '</td>'
+            + '</tr>';
+    }).join('');
+
+    const html =
+        '<div style="text-align:center; padding-bottom:6px;">'
+        + '<div style="font-size:14px; letter-spacing:1px;">SALES REPORT</div>'
+        + '<div style="font-size:11px;">' + escapeHtmlReport(rangeLabel) + '</div>'
+        + '</div>'
+
+        + '<table width="100%" cellspacing="0" cellpadding="2" style="font-size:12px; border-top:2px solid #000; border-bottom:2px solid #000; padding:4px 0; margin-bottom:6px;">'
+        + '<tr><td style="width:50%;">Orders</td><td style="text-align:right; width:50%;">' + d.count + '</td></tr>'
+        + '<tr><td>Revenue</td><td style="text-align:right;">Rs.' + d.revenue.toFixed(2) + '</td></tr>'
+        + '<tr><td>Avg Order</td><td style="text-align:right;">Rs.' + d.avg.toFixed(2) + '</td></tr>'
+        + '</table>'
+
+        + '<table width="100%" cellspacing="0" cellpadding="2" style="font-size:12px; table-layout:fixed;">'
+        + '<thead><tr style="border-bottom:1px dashed #000;">'
+        + '<th style="text-align:left; padding-bottom:4px; font-size:11px; width:34%;">ORDER</th>'
+        + '<th style="text-align:right; padding-bottom:4px; font-size:11px; width:30%;">TOTAL</th>'
+        + '<th style="text-align:right; padding-bottom:4px; font-size:11px; width:36%;">DATE</th>'
+        + '</tr></thead>'
+        + '<tbody>' + rows + '</tbody>'
+        + '</table>'
+
+        + '<div style="text-align:center; font-size:11px; margin-top:8px; border-top:1px dashed #000; padding-top:6px;">Printed: ' + new Date().toLocaleString() + '</div>';
+
+    printReceiptReport(html);
+}
 
 // ── Flatpickr — Payment Methods date range ──
 (function () {
