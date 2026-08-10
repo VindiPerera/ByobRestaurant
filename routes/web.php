@@ -79,6 +79,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/shifts/close', [ShiftController::class, 'closeShift'])->name('shifts.close');
     Route::get('/shifts/active', [ShiftController::class, 'getActiveShift'])->name('shifts.active');
     Route::get('/shifts/{shift}', [ShiftController::class, 'getShiftDetails'])->name('shifts.details');
+    Route::get('/shifts/{shift}/category-sales', [ShiftController::class, 'categorySales'])->name('shifts.category_sales');
     Route::post('/shifts/{shift}/transaction', [ShiftController::class, 'recordTransaction'])->name('shifts.transaction');
 
     // POS routes

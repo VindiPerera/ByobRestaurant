@@ -318,7 +318,10 @@
                 </div>
             </div>
 
-            <div class="bg-gray-100 p-6 border-t border-gray-200">
+            <div class="bg-gray-100 p-6 border-t border-gray-200 flex gap-3">
+                <button id="printShiftCategorySalesBtn" onclick="printShiftCategorySales()" class="bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2 px-6 rounded-lg transition">
+                    <i class="fas fa-tags mr-1"></i> Category Sales Receipt
+                </button>
                 <button onclick="closeDetailsModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg transition">
                     Close
                 </button>
@@ -345,13 +348,120 @@
             document.getElementById('closeShiftModal').classList.add('hidden');
         }
 
+        let currentDetailsShiftId = null;
+
         function viewShiftDetails(shiftId) {
+            currentDetailsShiftId = shiftId;
             document.getElementById('detailsModal').classList.remove('hidden');
             fetchShiftDetails(shiftId);
         }
 
         function closeDetailsModal() {
             document.getElementById('detailsModal').classList.add('hidden');
+        }
+
+        // ── Thermal receipt printer (80mm) helpers ──
+        function escapeHtmlShift(str) {
+            const div = document.createElement('div');
+            div.textContent = str ?? '';
+            return div.innerHTML;
+        }
+
+        function printReceiptShift(html) {
+            const w = window.open('', '', 'width=400,height=700,toolbar=0,menubar=0,scrollbars=1');
+            w.document.write(
+                '<!DOCTYPE html><html><head><style>'
+                + '@page { size: 80mm auto; margin: 2mm 6mm; }'
+                + '* { box-sizing: border-box; font-weight: bold !important; }'
+                + 'body { font-family: \'Courier New\', monospace; width: 100%; margin: 0; padding: 0; font-size: 12px; }'
+                + 'table { width: 100%; border-collapse: collapse; table-layout: fixed; }'
+                + 'td, th { word-break: break-word; overflow-wrap: break-word; }'
+                + '</style></head><body>' + html + '</body></html>'
+            );
+            w.document.close();
+            w.focus();
+            w.print();
+            setTimeout(function() { w.close(); }, 1200);
+        }
+
+        // ── Category-wise Sales receipt for a single shift ──
+        async function printShiftCategorySales() {
+            if (!currentDetailsShiftId) { return; }
+
+            const btn = document.getElementById('printShiftCategorySalesBtn');
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Loading...';
+
+            let d, failed = false;
+            try {
+                const res = await fetch(`/shifts/${currentDetailsShiftId}/category-sales`);
+                d = await res.json();
+            } catch (e) {
+                failed = true;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+
+            if (failed) {
+                alert('Could not load category sales for this shift.');
+                return;
+            }
+
+            if (!d.categories || !d.categories.length) {
+                alert('No sales recorded for this shift.');
+                return;
+            }
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-GB');
+            const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            const sections = d.categories.map(function(cat) {
+                const itemRows = cat.items.map(function(item) {
+                    return '<tr>'
+                        + '<td style="padding:1px 0; vertical-align:top;">' + escapeHtmlShift(item.product_name) + '</td>'
+                        + '<td style="text-align:center; padding:1px 0; vertical-align:top; width:15%;">' + item.qty + '</td>'
+                        + '<td style="text-align:right; padding:1px 0; vertical-align:top; width:25%;">' + item.amount.toFixed(2) + '</td>'
+                        + '</tr>';
+                }).join('');
+
+                return '<div style="margin-top:10px;">'
+                    + '<div style="font-size:12px;">' + escapeHtmlShift(cat.category.toUpperCase()) + '</div>'
+                    + '<div style="border-top:1px dashed #000; margin:3px 0;"></div>'
+                    + '<table width="100%" cellspacing="0" cellpadding="0" style="font-size:11px; table-layout:fixed;">'
+                    + '<tbody>' + itemRows + '</tbody>'
+                    + '</table>'
+                    + '<div style="border-top:1px dashed #000; margin-top:3px;"></div>'
+                    + '</div>';
+            }).join('');
+
+            const html =
+                '<div style="text-align:center; padding-bottom:4px;">'
+                + '<div style="font-size:14px;">Item Category wise Sales</div>'
+                + '<div style="font-size:11px; margin-top:4px;">Shift #' + d.shift_id + '</div>'
+                + '<div style="font-size:11px;">' + escapeHtmlShift(d.from) + ' - ' + escapeHtmlShift(d.to) + '</div>'
+                + '<div style="font-size:11px; margin-top:4px;">Report Date : ' + dateStr + '</div>'
+                + '<div style="font-size:11px;">Report Time : ' + timeStr + '</div>'
+                + '</div>'
+                + '<div style="border-top:1px dashed #000; margin:4px 0;"></div>'
+
+                + '<table width="100%" cellspacing="0" cellpadding="0" style="font-size:11px; table-layout:fixed;">'
+                + '<thead><tr>'
+                + '<th style="text-align:left; padding-bottom:2px;">Description</th>'
+                + '<th style="text-align:center; padding-bottom:2px; width:15%;">Qty</th>'
+                + '<th style="text-align:right; padding-bottom:2px; width:25%;">Amount</th>'
+                + '</tr></thead>'
+                + '</table>'
+                + '<div style="border-top:1px dashed #000; margin:2px 0;"></div>'
+
+                + sections
+
+                + '<div style="text-align:right; font-size:12px; margin-top:6px;">GRAND TOTAL &nbsp; ' + d.grand_total.toFixed(2) + '</div>'
+                + '<div style="text-align:center; font-size:11px; margin-top:8px; border-top:1px dashed #000; padding-top:6px;">Printed: ' + now.toLocaleString() + '</div>';
+
+            printReceiptShift(html);
         }
 
         // Fetch active shift data

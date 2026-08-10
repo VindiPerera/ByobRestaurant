@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Shift;
 use App\Models\ShiftTransaction;
+use App\Models\OrderItem;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -211,6 +213,65 @@ class ShiftController extends Controller
                 'total_tax' => (float) $totalTax,
                 'status' => $shift->status === 'active' ? 'Active' : 'Closed',
             ],
+        ]);
+    }
+
+    public function categorySales(Shift $shift)
+    {
+        if ($shift->user_id !== auth()->id() && !auth()->user()->role->modules()->where('name', 'Reports')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $from = $shift->started_at ?? $shift->created_at;
+        $to   = $shift->ended_at ?? now();
+
+        $query = OrderItem::select(
+                     'product_name',
+                     DB::raw('SUM(order_items.quantity) as total_qty'),
+                     DB::raw('SUM(order_items.subtotal) as total_revenue'),
+                     DB::raw('MAX(order_items.product_id) as product_id')
+                 )
+                 ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                 ->where('orders.user_id', $shift->user_id)
+                 ->where('orders.status', 'completed')
+                 ->whereBetween('orders.created_at', [$from, $to])
+                 ->groupBy('product_name');
+
+        $rows = $query->get();
+
+        $productIds = $rows->pluck('product_id')->filter()->unique();
+        $categoryByProductId = Product::with('category')
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id')
+            ->map(fn($p) => $p->category?->name ?? 'Uncategorized');
+
+        $categories = $rows->groupBy(function ($row) use ($categoryByProductId) {
+                          return $categoryByProductId->get($row->product_id) ?? 'Uncategorized';
+                      })
+                      ->map(function ($items, $categoryName) {
+                          return [
+                              'category' => $categoryName,
+                              'items' => $items->map(fn($row) => [
+                                  'product_name' => $row->product_name,
+                                  'qty'          => (int) $row->total_qty,
+                                  'amount'       => (float) $row->total_revenue,
+                              ])->values(),
+                              'total' => (float) $items->sum('total_revenue'),
+                          ];
+                      })
+                      ->sortBy('category')
+                      ->values();
+
+        return response()->json([
+            'shift_id'    => $shift->id,
+            'from'        => $from->format('d/m/Y H:i'),
+            'to'          => $to->format('d/m/Y H:i'),
+            'categories'  => $categories,
+            'grand_total' => (float) $rows->sum('total_revenue'),
         ]);
     }
 
