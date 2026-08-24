@@ -536,12 +536,16 @@ class PosController extends Controller
     public function payOrder(Request $request, Order $order)
     {
         $validated = $request->validate([
-            'payment_method' => 'required|in:cash,card,bank_transfer,mixed',
-            'amount_paid' => 'required|numeric|min:0',
-            'discount_type' => 'nullable|in:percentage,fixed',
-            'discount_value' => 'nullable|numeric|min:0',
-            'service_charge_type' => 'nullable|in:percentage,fixed',
+            'payment_method'       => 'required|in:cash,card,bank_transfer,mixed,split',
+            'amount_paid'          => 'required_unless:payment_method,split|nullable|numeric|min:0',
+            'discount_type'        => 'nullable|in:percentage,fixed',
+            'discount_value'       => 'nullable|numeric|min:0',
+            'service_charge_type'  => 'nullable|in:percentage,fixed',
             'service_charge_value' => 'nullable|numeric|min:0',
+            'split_method1'        => 'required_if:payment_method,split|nullable|in:cash,card,bank_transfer,bank',
+            'split_amount1'        => 'required_if:payment_method,split|nullable|numeric|min:0.01',
+            'split_method2'        => 'nullable|in:cash,card,bank_transfer,bank',
+            'split_amount2'        => 'nullable|numeric|min:0',
         ]);
 
         $order->load('items', 'table');
@@ -562,21 +566,48 @@ class PosController extends Controller
         }
 
         $total = $subtotal - $discount + $serviceCharge;
-        $amountPaid = $validated['amount_paid'];
+
+        // Handle split payment
+        $isSplit = $validated['payment_method'] === 'split';
+        if ($isSplit) {
+            $splitAmount1 = (float) ($validated['split_amount1'] ?? 0);
+            $splitAmount2 = (float) ($validated['split_amount2'] ?? 0);
+            $splitTotal   = $splitAmount1 + $splitAmount2;
+            if (abs($splitTotal - $total) > 0.01) {
+                return response()->json([
+                    'success' => false,
+                    'error'   => 'Split total (' . number_format($splitTotal, 2) . ') does not equal bill total (' . number_format($total, 2) . ').',
+                ], 422);
+            }
+            $amountPaid = $splitTotal;
+        } else {
+            $amountPaid = (float) $validated['amount_paid'];
+        }
+
         $change = max(0, $amountPaid - $total);
 
+        // Store 'mixed' in the enum column when payment is split
+        $paymentMethodStored = $isSplit ? 'mixed' : $validated['payment_method'];
+
+        // Normalise bank → bank_transfer for split sub-methods
+        $normMethod = fn($m) => $m === 'bank' ? 'bank_transfer' : $m;
+
         $order->update([
-            'status' => 'completed',
-            'subtotal' => $subtotal,
-            'discount_amount' => $discount,
+            'status'                => 'completed',
+            'subtotal'              => $subtotal,
+            'discount_amount'       => $discount,
             'service_charge_amount' => $serviceCharge,
-            'tax_amount' => 0,
-            'total' => $total,
-            'payment_method' => $validated['payment_method'],
-            'amount_paid' => $amountPaid,
-            'change_amount' => $change,
-            'printed_at' => now(),
-            'kot_printed_at' => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
+            'tax_amount'            => 0,
+            'total'                 => $total,
+            'payment_method'        => $paymentMethodStored,
+            'amount_paid'           => $amountPaid,
+            'change_amount'         => $change,
+            'split_method1'         => $isSplit ? $normMethod($validated['split_method1'] ?? null) : null,
+            'split_amount1'         => $isSplit ? $splitAmount1 : null,
+            'split_method2'         => $isSplit ? $normMethod($validated['split_method2'] ?? null) : null,
+            'split_amount2'         => $isSplit ? $splitAmount2 : null,
+            'printed_at'            => now(),
+            'kot_printed_at'        => $order->kot_printed_at ?? ($order->items->where('is_bar_item', false)->count() > 0 ? now() : null),
         ]);
 
         // Record transaction in active shift
@@ -586,12 +617,12 @@ class PosController extends Controller
 
         if ($activeShift) {
             ShiftTransaction::create([
-                'shift_id' => $activeShift->id,
-                'order_id' => $order->id,
+                'shift_id'         => $activeShift->id,
+                'order_id'         => $order->id,
                 'transaction_type' => 'sale',
-                'amount' => $total,
-                'payment_method' => $validated['payment_method'],
-                'description' => "Order #{$order->order_number}",
+                'amount'           => $total,
+                'payment_method'   => $paymentMethodStored,
+                'description'      => "Order #{$order->order_number}",
             ]);
 
             if ($discount > 0) {
@@ -617,26 +648,31 @@ class PosController extends Controller
         }
 
         return response()->json([
-            'success' => true,
-            'order_number' => $order->order_number,
-            'table_number' => $order->table?->table_number,
-            'table_name' => $order->table?->name,
-            'customer_name' => $order->customer_name,
-            'customer_phone' => $order->customer_phone,
-            'subtotal' => (float) $subtotal,
-            'discount_amount' => (float) $discount,
+            'success'               => true,
+            'order_number'          => $order->order_number,
+            'table_number'          => $order->table?->table_number,
+            'table_name'            => $order->table?->name,
+            'customer_name'         => $order->customer_name,
+            'customer_phone'        => $order->customer_phone,
+            'subtotal'              => (float) $subtotal,
+            'discount_amount'       => (float) $discount,
             'service_charge_amount' => (float) $serviceCharge,
-            'total' => (float) $total,
-            'payment_method' => $validated['payment_method'],
-            'amount_paid' => (float) $amountPaid,
-            'change_amount' => (float) $change,
-            'items' => $order->items->map(fn($item) => [
-                'product_name' => $item->product_name,
-                'quantity' => $item->quantity,
-                'unit_price' => (float) $item->unit_price,
-                'subtotal' => (float) $item->subtotal,
+            'total'                 => (float) $total,
+            'payment_method'        => $validated['payment_method'],
+            'amount_paid'           => (float) $amountPaid,
+            'change_amount'         => (float) $change,
+            'is_split'              => $isSplit,
+            'split_method1'         => $isSplit ? ($normMethod($validated['split_method1'] ?? null)) : null,
+            'split_amount1'         => $isSplit ? (float) ($validated['split_amount1'] ?? 0) : null,
+            'split_method2'         => $isSplit ? ($normMethod($validated['split_method2'] ?? null)) : null,
+            'split_amount2'         => $isSplit ? (float) ($validated['split_amount2'] ?? 0) : null,
+            'items'                 => $order->items->map(fn($item) => [
+                'product_name'     => $item->product_name,
+                'quantity'         => $item->quantity,
+                'unit_price'       => (float) $item->unit_price,
+                'subtotal'         => (float) $item->subtotal,
                 'discount_percent' => (float) $item->discount_percent,
-                'kitchen_notes' => $item->kitchen_notes,
+                'kitchen_notes'    => $item->kitchen_notes,
             ]),
         ]);
     }
