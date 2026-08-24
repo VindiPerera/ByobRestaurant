@@ -1689,23 +1689,49 @@
 
         // Split payment validation
         if (selectedPaymentMethod === 'split') {
+            const method1 = document.getElementById('splitMethod1').value;
+            const method2 = document.getElementById('splitMethod2').value;
             const amount1 = parseFloat(document.getElementById('splitAmount1').value) || 0;
             const amount2 = parseFloat(document.getElementById('splitAmount2').value) || 0;
             const subtotal = currentOrder.subtotal || 0;
             const discountVal = calcDiscount(subtotal);
             const serviceChargeVal = calcServiceCharge(subtotal);
             const total = Math.max(0, subtotal - discountVal + serviceChargeVal);
-            const splitTotal = amount1 + amount2;
 
-            if (amount1 <= 0 || splitTotal === 0) {
-                toast('Please enter amounts for split payment', 'error');
+            // Method 1 amount is always required
+            if (amount1 <= 0) {
+                toast('Please enter an amount for Method 1', 'error');
+                document.getElementById('splitAmount1').focus();
                 return;
             }
+
+            // If Method 2 has an amount but no method selected — block
+            if (amount2 > 0 && !method2) {
+                toast('Please select a payment method for Method 2', 'error');
+                document.getElementById('splitMethod2').focus();
+                return;
+            }
+
+            // If Method 2 is selected but has no amount — block
+            if (method2 && amount2 <= 0) {
+                toast('Please enter an amount for Method 2, or leave both Method 2 fields empty', 'error');
+                document.getElementById('splitAmount2').focus();
+                return;
+            }
+
+            // Both methods cannot be the same
+            if (method2 && method1 === method2) {
+                toast('Method 1 and Method 2 cannot be the same payment type', 'error');
+                return;
+            }
+
+            const splitTotal = amount1 + amount2;
             if (Math.abs(splitTotal - total) > 0.01) {
-                toast(`Split total (Rs. ${splitTotal.toFixed(2)}) must equal bill (Rs. ${total.toFixed(2)})`, 'error');
+                toast(`Split total (Rs. ${splitTotal.toFixed(2)}) must equal bill total (Rs. ${total.toFixed(2)})`, 'error');
                 return;
             }
         }
+
 
         await saveCustomerInfo();
 
@@ -1753,7 +1779,7 @@
     }
 
     function showPaidBill(d) {
-        const methodLabel = { cash:'Cash', card:'Card', bank_transfer:'Bank Transfer', mixed:'Mixed' };
+        const methodLabel = { cash:'Cash', card:'Card', bank_transfer:'Bank Transfer', bank:'Bank Transfer', mixed:'Mixed', split:'Split' };
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-GB') + ', ' + now.toLocaleTimeString('en-GB');
 
@@ -1815,9 +1841,14 @@
 
             // ── PAYMENT DETAILS ──
             + '<table width="100%" cellspacing="0" cellpadding="2" style="font-size:12px; color:#000; border-top:1px dashed #000; margin-top:6px; width:100%; table-layout:fixed;">'
-            + '<tr><td style="width:65%;">Paid (' + (methodLabel[d.payment_method] || d.payment_method) + ')</td><td style="text-align:right; width:35%;">Rs.' + d.amount_paid.toFixed(2) + '</td></tr>'
-            + (d.change_amount > 0 ? '<tr><td>Change</td><td style="text-align:right;">Rs.' + d.change_amount.toFixed(2) + '</td></tr>' : '')
+            + (d.is_split
+                ? '<tr><td style="width:65%;">Paid (' + (methodLabel[d.split_method1] || d.split_method1) + ')</td><td style="text-align:right; width:35%;">Rs.' + (d.split_amount1 || 0).toFixed(2) + '</td></tr>'
+                  + (d.split_method2 ? '<tr><td>Paid (' + (methodLabel[d.split_method2] || d.split_method2) + ')</td><td style="text-align:right;">Rs.' + (d.split_amount2 || 0).toFixed(2) + '</td></tr>' : '')
+                : '<tr><td style="width:65%;">Paid (' + (methodLabel[d.payment_method] || d.payment_method) + ')</td><td style="text-align:right; width:35%;">Rs.' + d.amount_paid.toFixed(2) + '</td></tr>'
+                  + (d.change_amount > 0 ? '<tr><td>Change</td><td style="text-align:right;">Rs.' + d.change_amount.toFixed(2) + '</td></tr>' : '')
+              )
             + '</table>'
+
 
             // ── FOOTER ──
             + '<div style="text-align:center; font-size:11px; margin-top:8px; color:#000; border-top:1px dashed #000; padding-top:6px;">Thank you for dining with us!<br>We look forward to seeing you again.<br>Powered By JAAN Network (PVT) Ltd</div>';
