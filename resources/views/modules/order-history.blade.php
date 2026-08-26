@@ -258,7 +258,7 @@
 
         function printThermalReceipt(d) {
             const CO_NAME    = 'Suasa Family Restaurant';
-            const CO_CONTACT = '071 979 9799';
+            const CO_CONTACT = '071 379 9799';
             const CO_ADDRESS = '583 Avissawella Road, mulleriyawa';
             const CO_EMAIL   = 'info@suasafamily.com';
 
