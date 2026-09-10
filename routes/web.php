@@ -137,6 +137,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/category-sales', [ReportsController::class, 'categorySalesJson'])->name('reports.category_sales');
     Route::get('/reports/export/products-pdf', [ReportsController::class, 'exportProductsPdf'])->name('reports.export.products');
     Route::get('/reports/export/combined-pdf', [ReportsController::class, 'exportCombinedPdf'])->name('reports.export.combined');
+    Route::get('/reports/export/monthly-sales-pdf', [ReportsController::class, 'exportMonthlySalesPdf'])->name('reports.export.monthly_sales');
 
     Route::get('/settings', function () {
         $modules = auth()->user()->role->modules()->get();

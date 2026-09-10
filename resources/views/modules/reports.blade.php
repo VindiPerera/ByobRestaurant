@@ -24,6 +24,36 @@
                 <a href="{{ route('reports.export.combined') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-medium">
                     <i class="fas fa-download"></i> Complete PDF
                 </a>
+                <div class="relative">
+                    <button type="button" id="monthlySalesBtn" onclick="toggleMonthlySalesPicker()" class="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm font-medium">
+                        <i class="fas fa-download"></i> Monthly Sales PDF
+                    </button>
+                    <div id="monthlySalesPicker" class="hidden absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-20">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Select Month Range</p>
+                        <form id="monthlySalesForm" method="GET" action="{{ route('reports.export.monthly_sales') }}">
+                            <div class="grid grid-cols-2 gap-2 mb-3">
+                                <div>
+                                    <label for="monthlyFrom" class="block text-xs text-gray-400 mb-1">From</label>
+                                    <input type="month" name="from" id="monthlyFrom" required
+                                        class="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-teal-500">
+                                </div>
+                                <div>
+                                    <label for="monthlyTo" class="block text-xs text-gray-400 mb-1">To</label>
+                                    <input type="month" name="to" id="monthlyTo" required
+                                        class="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-teal-500">
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-2">
+                                <button type="button" onclick="downloadAllTimeMonthlySales()" class="text-xs text-gray-500 hover:text-gray-700 underline">
+                                    All time
+                                </button>
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition">
+                                    <i class="fas fa-download text-xs"></i> Download PDF
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -561,6 +591,25 @@
         }
     });
 })();
+
+// ── Monthly Sales PDF — month range picker ──
+function toggleMonthlySalesPicker() {
+    document.getElementById('monthlySalesPicker').classList.toggle('hidden');
+}
+
+function downloadAllTimeMonthlySales() {
+    window.location.href = '{{ route("reports.export.monthly_sales") }}';
+    document.getElementById('monthlySalesPicker').classList.add('hidden');
+}
+
+document.addEventListener('click', function (e) {
+    const picker = document.getElementById('monthlySalesPicker');
+    const btn    = document.getElementById('monthlySalesBtn');
+    if (!picker || picker.classList.contains('hidden')) return;
+    if (!picker.contains(e.target) && !btn.contains(e.target)) {
+        picker.classList.add('hidden');
+    }
+});
 
 // ── Flatpickr — Sales Report date range ──
 (function () {

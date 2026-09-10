@@ -215,6 +215,49 @@ class ReportsController extends Controller
         return $pdf->download('sales-report-' . $from->format('Y-m-d') . '-to-' . $to->format('Y-m-d') . '.pdf');
     }
 
+    public function exportMonthlySalesPdf(Request $request)
+    {
+        // Expect 'from' and 'to' as Y-m (e.g. 2026-01) marking the first and last month to include.
+        $fromMonth = $request->input('from') ? Carbon::createFromFormat('Y-m', $request->input('from'))->startOfMonth() : null;
+        $toMonth   = $request->input('to')   ? Carbon::createFromFormat('Y-m', $request->input('to'))->endOfMonth()     : null;
+
+        $query = Order::where('status', 'completed')
+            ->select(
+                DB::raw('YEAR(created_at) as year'),
+                DB::raw('MONTH(created_at) as month'),
+                DB::raw('SUM(total) as total_amount')
+            )
+            ->groupBy('year', 'month')
+            ->orderBy('year')
+            ->orderBy('month');
+
+        if ($fromMonth && $toMonth) {
+            $query->whereBetween('created_at', [$fromMonth, $toMonth]);
+        }
+
+        $monthlySales = $query->get()->map(function ($row) {
+            return [
+                'label'  => Carbon::createFromDate($row->year, $row->month, 1)->format('F Y'),
+                'amount' => (float) $row->total_amount,
+            ];
+        });
+
+        $grandTotal = $monthlySales->sum('amount');
+
+        $rangeLabel = ($fromMonth && $toMonth)
+            ? $fromMonth->format('F Y') . ' — ' . $toMonth->format('F Y')
+            : 'All time';
+
+        $pdf = Pdf::loadView('reports.monthly-sales-pdf', [
+            'monthlySales' => $monthlySales,
+            'grandTotal'   => $grandTotal,
+            'rangeLabel'   => $rangeLabel,
+            'generatedAt'  => now()->format('d M Y, H:i'),
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('monthly-sales-report-' . now()->format('Y-m-d-His') . '.pdf');
+    }
+
     private function baseReportData(): array
     {
         $totalRevenue  = Order::where('status', 'completed')->sum('total');
