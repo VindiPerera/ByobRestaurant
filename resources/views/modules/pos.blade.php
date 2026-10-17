@@ -159,6 +159,46 @@
         #toast.error   { background: #991b1b; }
         #toast.warning { background: #92400e; }
 
+
+        /* ── Mobile / tablet responsive ── */
+        .mobile-tabs { display: none; }
+        @media (max-width: 1280px) and (min-width: 1025px) {
+            .pos-grid { grid-template-columns: 240px 1fr 400px; }
+        }
+        @media (max-width: 1024px) {
+            body { height: 100dvh; }
+            .pos-grid { display: block; position: relative; height: calc(100dvh - 64px - 56px) !important; }
+            .tables-panel, .menu-panel, .bill-panel { display: none; height: 100%; width: 100%; border: none; }
+            .pos-grid[data-tab="tables"] .tables-panel,
+            .pos-grid[data-tab="menu"] .menu-panel,
+            .pos-grid[data-tab="bill"] .bill-panel { display: flex; }
+            .mobile-tabs {
+                display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 56px; z-index: 40;
+                background: #0f172a; border-top: 1px solid rgba(255,255,255,0.1);
+            }
+            .mobile-tab {
+                flex: 1; background: none; border: none; color: #94a3b8; font-size: 11px; font-weight: 700;
+                display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; position: relative;
+            }
+            .mobile-tab i { font-size: 17px; }
+            .mobile-tab.active { color: #fff; box-shadow: inset 0 3px 0 #dc2626; }
+            #mobileBillCount {
+                position: absolute; top: 5px; left: 55%; background: #dc2626; color: #fff; border-radius: 9px;
+                font-size: 10px; min-width: 18px; padding: 0 4px; display: none;
+            }
+            .modal-box { padding: 18px !important; width: 96% !important; max-width: 96vw !important; }
+            #toast { bottom: 70px; right: 12px; left: 12px; max-width: none; }
+            .qty-btn { width: 34px; height: 34px; }
+            .btn-primary, .btn-secondary, .btn-green, .btn-blue, .btn-orange, .btn-purple { min-height: 42px; }
+            input, select, textarea { font-size: 16px !important; } /* stop iOS zoom */
+            #tablesContainer { grid-template-columns: repeat(3, 1fr) !important; }
+            #productsContainer { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; gap: 8px !important; }
+        }
+        @media (max-width: 600px) {
+            #tablesContainer { grid-template-columns: repeat(2, 1fr) !important; }
+            .bill-panel > div:last-child > div:first-child { grid-template-columns: 1fr 1fr 1fr !important; row-gap: 8px !important; }
+        }
+
         /* ── Print ── */
         @media print {
             body > * { display: none !important; }
@@ -241,7 +281,7 @@
 <!-- Hidden print area -->
 <div id="printArea"></div>
 
-<div class="pos-grid" style="margin-top: 0; height: calc(100vh - 64px);">
+<div class="pos-grid" id="posGrid" data-tab="tables" style="margin-top: 0; height: calc(100vh - 64px);">
 
     <!-- ════════════════════════════════════════
          COLUMN 1 — TABLES PANEL
@@ -542,6 +582,14 @@
     </div>
 </div>
 
+
+<!-- Mobile tab bar -->
+<nav class="mobile-tabs">
+    <button class="mobile-tab active" data-tab="tables" onclick="setMobileTab('tables')"><i class="fas fa-chair"></i>Tables</button>
+    <button class="mobile-tab" data-tab="menu" onclick="setMobileTab('menu')"><i class="fas fa-utensils"></i>Menu</button>
+    <button class="mobile-tab" data-tab="bill" onclick="setMobileTab('bill')"><i class="fas fa-receipt"></i>Order<span id="mobileBillCount"></span></button>
+</nav>
+
 <!-- ══════════════════════════════════════════════════
      MODAL: Final Bill (paid)
 ══════════════════════════════════════════════════ -->
@@ -667,6 +715,34 @@
 <!-- Toast notification -->
 <div id="toast"></div>
 
+<script>
+    // ── Mobile tab switching ──
+    function setMobileTab(tab) {
+        document.getElementById('posGrid').dataset.tab = tab;
+        document.querySelectorAll('.mobile-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    }
+    (function () {
+        const isMobile = () => window.innerWidth <= 1024;
+        // After choosing/opening a table or takeaway, jump to the menu
+        window.addEventListener('load', () => {
+            ['startNewOrder', 'viewTableOrder', 'startTakeawayOrder'].forEach(fn => {
+                const orig = window[fn];
+                if (typeof orig !== 'function') return;
+                window[fn] = async function () {
+                    const r = await orig.apply(this, arguments);
+                    if (isMobile()) setMobileTab('menu');
+                    return r;
+                };
+            });
+            // Show item count on the Order tab
+            const bi = document.getElementById('billItems'), badge = document.getElementById('mobileBillCount');
+            if (bi && badge) new MutationObserver(() => {
+                const n = Math.floor(bi.querySelectorAll('.qty-btn').length / 2);
+                badge.textContent = n; badge.style.display = n ? 'inline-block' : 'none';
+            }).observe(bi, { childList: true, subtree: true });
+        });
+    })();
+</script>
 <script>
     // ── State ──
     let currentOrder  = null;
